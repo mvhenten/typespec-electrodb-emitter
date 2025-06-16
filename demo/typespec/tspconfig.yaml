@@ -1,0 +1,11 @@
+emit:
+  - "@stxtech/electrodb-emitter"
+options:
+  "@stxtech/electrodb-emitter":
+    file-type: "json"
+    # int64-strategy: string
+    # emitAllModels: true
+    # emitAllRefs: true
+    # seal-object-schemas: true
+    # bundleId: "entities.json"
+

@@ -1,45 +1,43 @@
 {
-  "name": "@stxtech/electrodb-emitter",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "dist/src/index.js",
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "default": "./dist/src/index.js",
-      "typespec": "./tsp/main.tsp"
-    },
-    "./testing": {
-      "types": "./dist/src/testing/index.d.ts",
-      "default": "./dist/src/testing/index.js"
-    }
-  },
-  "peerDependencies": {
-    "@typespec/compiler": "latest"
-  },
-  "devDependencies": {
-    "@types/node": "latest",
-    "@typescript-eslint/eslint-plugin": "^8.15.0",
-    "@typescript-eslint/parser": "^8.15.0",
-    "@typespec/compiler": "^1.1.0",
-    "eslint": "^9.15.0",
-    "prettier": "^3.3.3",
-    "recast": "^0.23.11",
-    "typescript": "^5.8.3"
-  },
-  "scripts": {
-    "build": "tsc",
-    "build:bundle": "esbuild 'src/index.ts' --bundle --platform=node --minify --outfile=dist/index.js",
-    "watch": "tsc --watch",
-    "test": "node --test",
-    "lint": "eslint src/ test/ --report-unused-disable-directives --max-warnings=0",
-    "lint:fix": "eslint . --report-unused-disable-directives --fix",
-    "format": "prettier .  --write",
-    "format:check": "prettier --check ."
-  },
-  "private": true,
-  "packageManager": "npm@11.4.2+sha512.f90c1ec8b207b625d6edb6693aef23dacb39c38e4217fe8c46a973f119cab392ac0de23fe3f07e583188dae9fd9108b3845ad6f525b598742bd060ebad60bff3",
-  "dependencies": {
-    "electrodb": "^3.4.3"
-  }
+	"name": "typespec-electrodb-emitter",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "dist/src/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"default": "./dist/src/index.js",
+			"typespec": "./tsp/main.tsp"
+		},
+		"./testing": {
+			"types": "./dist/src/testing/index.d.ts",
+			"default": "./dist/src/testing/index.js"
+		}
+	},
+	"peerDependencies": {
+		"@typespec/compiler": "latest"
+	},
+	"devDependencies": {
+		"@babel/generator": "^7.27.5",
+		"@babel/parser": "^7.27.5",
+		"@babel/types": "^7.27.6",
+		"@biomejs/biome": "1.9.4",
+		"@types/node": "latest",
+		"@typescript-eslint/eslint-plugin": "^8.15.0",
+		"@typescript-eslint/parser": "^8.15.0",
+		"electrodb": "^3.4.3",
+		"@typespec/compiler": "^1.1.0",
+		"eslint": "^9.15.0",
+		"prettier": "^3.3.3",
+		"recast": "^0.23.11",
+		"tsx": "^4.20.3",
+		"typescript": "^5.8.3"
+	},
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc --watch",
+		"test": "npm run test:biome && npm run build",
+		"prepublishOnly": "npm run build",
+		"test:biome": "biome check src"
+	}
 }

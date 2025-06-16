@@ -1,15 +1,3 @@
-# typespec-electrodb-emitter
-Emit electrodb entities from your typespec.
-
-## Usage
-
-Install this generator in your typespec project: 
-
-`npm i -D  typespec-electrodb-emitter`
-
-Then, annotate your models using `entity`, `createdAt`, `updatedAt` and `label`.
-
-```typespec
 import "typespec-electrodb-emitter";
 
 @maxLength(64)
@@ -54,4 +42,3 @@ model Person {
     contact: Contact[];
     nickName?: string;
 }
-```
