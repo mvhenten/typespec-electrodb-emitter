@@ -1,11 +1,11 @@
 {
 	"name": "@typespec-electrodb-emitter/demo",
 	"version": "1.0.0",
-	"main": "index.js",
+	"main": "index.ts",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"build": "tsp compile typespec",
-		"watch": "npx chokidar-cli \"../dist/\" -c \"tsp compile typespec\""
+		"build": "tsp compile .",
+		"watch": "npx chokidar-cli \"../dist/\" -c \"tsp compile .\""
 	},
 	"author": "",
 	"license": "ISC",

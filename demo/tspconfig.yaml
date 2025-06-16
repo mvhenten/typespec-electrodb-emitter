@@ -1,0 +1,6 @@
+emit:
+  - "typespec-electrodb-emitter"
+options:
+  "typespec-electrodb-emitter":
+    file-type: "ts"
+

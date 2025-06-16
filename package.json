@@ -38,6 +38,7 @@
 		"watch": "tsc --watch",
 		"test": "npm run test:biome && npm run build",
 		"prepublishOnly": "npm run build",
-		"test:biome": "biome check src"
+		"test:biome": "biome check src",
+		"test:demo": "cd demo; npm i; npm run build"
 	}
 }
