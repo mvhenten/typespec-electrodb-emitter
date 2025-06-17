@@ -1,14 +1,11 @@
 import assert from "node:assert";
 import type {
 	ArrayModelType,
-	DecoratorContext,
 	Enum,
 	Model,
 	ModelProperty,
-	NumericLiteral,
 	RecordModelType,
 	Scalar,
-	StringLiteral,
 	Type,
 } from "@typespec/compiler";
 import {
@@ -18,50 +15,9 @@ import {
 	walkPropertiesInherited,
 } from "@typespec/compiler";
 import type { Attribute, CustomAttribute, Schema } from "electrodb";
+
 import { StateKeys } from "./lib.js";
 import { stringifyObject } from "./stringify.js";
-
-export function $createdAt(
-	context: DecoratorContext,
-	target: ModelProperty,
-	label?: StringLiteral,
-) {
-	context.program
-		.stateMap(StateKeys.createdAt)
-		.set(target, label?.value ?? "cat");
-}
-
-export function $updatedAt(
-	context: DecoratorContext,
-	target: ModelProperty,
-	label?: StringLiteral,
-) {
-	context.program
-		.stateMap(StateKeys.updatedAt)
-		.set(target, label?.value ?? "uat");
-}
-
-export function $label(
-	context: DecoratorContext,
-	target: ModelProperty,
-	label: StringLiteral,
-) {
-	context.program.stateMap(StateKeys.label).set(target, label.value);
-}
-
-export function $entity(
-	context: DecoratorContext,
-	target: Model,
-	entity: StringLiteral,
-	service: StringLiteral,
-	version: NumericLiteral,
-) {
-	context.program.stateMap(StateKeys.electroEntity).set(target, {
-		entity: entity.value,
-		service: service.value,
-		version: version?.value,
-	});
-}
 
 function emitIntrinsincScalar(type: Scalar) {
 	switch (type.name) {
@@ -175,6 +131,8 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 
 		return {
 			...type,
+			type: "number",
+			label,
 			readOnly: true,
 			required: true,
 			default: () => Date.now(),
@@ -195,14 +153,19 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 			required: true,
 			default: () => Date.now(),
 			set: () => Date.now(),
-		} as unknown as Attribute;
+		};
 	}
 
-	const attr = {
+	const attr: Attribute = {
 		...type,
 		required: !prop.optional,
-		label: getLabel(ctx, prop),
 	};
+
+	const label = getLabel(ctx, prop);
+	if (label) {
+		// @ts-expect-error
+		attr.label = label;
+	}
 
 	return attr;
 }
@@ -211,6 +174,9 @@ function emitEntity(ctx: EmitContext, model: Model) {
 	const entity: Record<string, Attribute> = {};
 
 	for (const prop of model.properties.values()) {
+		const attr = emitAttribute(ctx, prop);
+
+		if (!attr) continue;
 		entity[prop.name] = emitAttribute(ctx, prop);
 	}
 
@@ -234,7 +200,7 @@ export async function $onEmit(context: EmitContext) {
 
 		entities[model.name] = {
 			attributes,
-			indexes: {},
+			indexes: context.program.stateMap(StateKeys.index).get(model) ?? {},
 			model: {
 				entity: props.entity,
 				service: props.service,

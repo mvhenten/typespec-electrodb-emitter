@@ -71,6 +71,7 @@ export const stringifyObject = (object: Record<string, unknown>): string => {
 	return generate(ast).code;
 };
 
+// inline test
 if (import.meta.url.endsWith(process.argv[1])) {
 	console.log(
 		stringifyObject({

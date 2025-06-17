@@ -9,6 +9,7 @@ export const $lib = createTypeSpecLibrary({
 		createdAt: { description: "State for the @createdAt decorator" },
 		updatedAt: { description: "State for the @updatedAt decorator" },
 		partitionKey: { description: "State for the @partitionKey decorator" },
+		index: { description: "State for the @index decorator" },
 	},
 });
 
