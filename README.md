@@ -50,7 +50,7 @@ extern dec updatedAt(target: ModelProperty, label?: string);
  *
  * Or full access pattern:
  *
- ```
+ 
   model AccessPattern {
      index?: string;
      collection?: string | string[];
@@ -64,7 +64,6 @@ extern dec updatedAt(target: ModelProperty, label?: string);
          composite: ModelProperty[] = #[];
      };
  }
-```
  *
  */
 extern dec index(target: Model, name: string, accessPattern: AccessPattern);
