@@ -1,6 +1,6 @@
 {
 	"name": "typespec-electrodb-emitter",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"main": "dist/src/index.js",
 	"exports": {
@@ -22,11 +22,12 @@
 		"@babel/parser": "^7.27.5",
 		"@babel/types": "^7.27.6",
 		"@biomejs/biome": "1.9.4",
+		"@types/babel__generator": "^7.27.0",
 		"@types/node": "latest",
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
 		"@typescript-eslint/parser": "^8.15.0",
-		"electrodb": "^3.4.3",
 		"@typespec/compiler": "^1.1.0",
+		"electrodb": "^3.4.3",
 		"eslint": "^9.15.0",
 		"prettier": "^3.3.3",
 		"recast": "^0.23.11",
