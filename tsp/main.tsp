@@ -27,7 +27,7 @@ extern dec entity(
     target: Model,
     entity: string,
     service: string,
-    version?: int32
+    version?: string
 );
 
 /**
