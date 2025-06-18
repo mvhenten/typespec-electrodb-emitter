@@ -238,13 +238,18 @@ export async function $onEmit(context: EmitContext) {
 			model: {
 				entity: props.entity,
 				service: props.service,
-				version: props.version ?? 1,
+				version: props.version ?? "1",
 			},
 		};
 	}
 
 	await emitFile(context.program, {
 		path: resolvePath(context.emitterOutputDir, "entities.ts"),
-		content: `export default ${stringifyObject(entities)}`,
+		content: Object.entries(entities)
+			.map(
+				([name, schema]) =>
+					`export const ${name} = ${stringifyObject(schema as unknown as Record<string, unknown>)} as const`,
+			)
+			.join("\n"),
 	});
 }
