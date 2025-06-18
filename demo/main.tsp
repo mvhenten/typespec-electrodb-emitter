@@ -25,6 +25,12 @@ model Contact {
 }
 
 @entity("person", "org")
+@index(
+    "persons",
+    {
+        pk: [Person.pk],
+    }
+)
 model Person {
     @invisible(Lifecycle)
     pk: UUID;
