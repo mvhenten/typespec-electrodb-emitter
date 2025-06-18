@@ -11,7 +11,7 @@ export function $entity(
 	target: Model,
 	entity: StringLiteral,
 	service: StringLiteral,
-	version: NumericLiteral,
+	version: StringLiteral,
 ) {
 	context.program.stateMap(StateKeys.electroEntity).set(target, {
 		entity: entity.value,
