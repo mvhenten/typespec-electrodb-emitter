@@ -1,0 +1,18 @@
+{
+	"compilerOptions": {
+		"inlineSourceMap": true,
+		"target": "ES2022",
+		"useDefineForClassFields": true,
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"lib": ["ES2022"],
+		"rootDir": ".",
+		"outDir": "dist",
+		"declaration": true,
+		"skipLibCheck": true,
+
+		/* Linting */
+		"strict": true
+	},
+	"include": ["src", "test"]
+}
