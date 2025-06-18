@@ -30,6 +30,7 @@
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
 		"@typescript-eslint/parser": "^8.15.0",
 		"@typespec/compiler": "^1.1.0",
+		"conventional-changelog-conventionalcommits": "^9.0.0",
 		"electrodb": "^3.4.3",
 		"eslint": "^9.15.0",
 		"prettier": "^3.3.3",
