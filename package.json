@@ -4,7 +4,7 @@
 	"type": "module",
 	"main": "dist/src/index.js",
 	"release": {
-		"preset": ["conventionalcommits"]
+		"preset": "conventionalcommits"
 	},
 	"exports": {
 		".": {
