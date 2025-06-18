@@ -3,6 +3,9 @@
 	"version": "0.1.1",
 	"type": "module",
 	"main": "dist/src/index.js",
+	"release": {
+		"preset": ["conventionalcommits"]
+	},
 	"exports": {
 		".": {
 			"types": "./dist/src/index.d.ts",
