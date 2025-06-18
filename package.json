@@ -17,19 +17,13 @@
 			"default": "./dist/src/testing/index.js"
 		}
 	},
-	"peerDependencies": {
-		"@typespec/compiler": "latest"
-	},
 	"devDependencies": {
-		"@babel/generator": "^7.27.5",
-		"@babel/parser": "^7.27.5",
 		"@babel/types": "^7.27.6",
 		"@biomejs/biome": "1.9.4",
 		"@types/babel__generator": "^7.27.0",
 		"@types/node": "latest",
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
 		"@typescript-eslint/parser": "^8.15.0",
-		"@typespec/compiler": "^1.1.0",
 		"conventional-changelog-conventionalcommits": "^9.0.0",
 		"electrodb": "^3.4.3",
 		"eslint": "^9.15.0",
@@ -45,5 +39,10 @@
 		"prepublishOnly": "npm run build",
 		"test:biome": "biome check src",
 		"test:demo": "cd demo; npm i; npm run build"
+	},
+	"dependencies": {
+		"@babel/generator": "^7.27.5",
+		"@babel/parser": "^7.27.5",
+		"@typespec/compiler": "^1.1.0"
 	}
 }
