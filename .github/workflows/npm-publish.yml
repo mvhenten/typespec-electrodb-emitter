@@ -30,7 +30,7 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org/
       - name: Automated releases for npm packages
-        uses: mikeal/merge-release@v4.3.0
+        uses: Github-Actions-Community/merge-release@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
