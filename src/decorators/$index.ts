@@ -55,12 +55,17 @@ const getStringValue = (source: Model, name: string) => {
 	}
 };
 
-const normalizeKey = (target: Model, pattern: Model, keyName: string) => {
+const normalizeKey = (
+	keyName: string,
+	params: { target: Model; pattern: Model },
+) => {
+	const { target, pattern } = params;
 	const key = getProperty(pattern, keyName);
+	const index = getStringValue(pattern, "index") ?? "";
 
 	if (key && key.kind === "Tuple") {
 		return {
-			field: keyName,
+			field: `${index}${keyName}`,
 			composite: extractFieldNames(target, key),
 		};
 	}
@@ -68,8 +73,8 @@ const normalizeKey = (target: Model, pattern: Model, keyName: string) => {
 	if (key && key.kind === "Model") {
 		const composite = getProperty(key, "composite");
 
-		const index = {
-			field: getStringValue(key, "field") ?? keyName,
+		return {
+			field: getStringValue(key, "field"),
 			composite:
 				composite && composite.kind === "Tuple"
 					? extractFieldNames(target, composite)
@@ -78,7 +83,7 @@ const normalizeKey = (target: Model, pattern: Model, keyName: string) => {
 	}
 
 	return {
-		field: keyName,
+		field: `${index}${keyName}`,
 		composite: [],
 	};
 };
@@ -86,12 +91,13 @@ const normalizeKey = (target: Model, pattern: Model, keyName: string) => {
 export function $index(
 	context: DecoratorContext,
 	target: Model,
-	indexName: StringLiteral,
+	patternName: StringLiteral,
 	pattern: Model,
 ) {
+	const name = patternName.value;
 	const accesPattern: AccessPattern = {
-		pk: normalizeKey(target, pattern, "pk"),
-		sk: normalizeKey(target, pattern, "sk"),
+		pk: normalizeKey("pk", { target, pattern }),
+		sk: normalizeKey("sk", { target, pattern }),
 	};
 
 	for (const key of ["index", "collection", "type"]) {
@@ -106,7 +112,7 @@ export function $index(
 	const state: Record<string, AccessPattern> =
 		context.program.stateMap(StateKeys.index).get(target) ?? {};
 
-	state[indexName.value] = accesPattern;
+	state[name] = accesPattern;
 
 	context.program.stateMap(StateKeys.index).set(target, state);
 }
