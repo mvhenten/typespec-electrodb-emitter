@@ -15,6 +15,7 @@ import {
 	walkPropertiesInherited,
 } from "@typespec/compiler";
 import type { Attribute, CustomAttribute, Schema } from "electrodb";
+import * as ts from "typescript";
 
 import { StateKeys } from "./lib.js";
 import { stringifyObject } from "./stringify.js";
@@ -188,6 +189,9 @@ function isModel(type: Type): asserts type is Model {
 }
 
 export async function $onEmit(context: EmitContext) {
+	const packageName = context.options["package-name"];
+	const packageVersion = context.options["package-version"];
+
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const entities: Record<string, Schema<any, any, any>> = {};
 
@@ -209,13 +213,38 @@ export async function $onEmit(context: EmitContext) {
 		};
 	}
 
+	const typescriptSource = Object.entries(entities)
+		.map(
+			([name, schema]) =>
+				`export const ${name} = ${stringifyObject(schema as unknown as Record<string, unknown>)} as const`,
+		)
+		.join("\n");
+
+	const declarations = await ts.transpileDeclaration(typescriptSource, {});
+	const javascript = await ts.transpileModule(typescriptSource, {});
+
 	await emitFile(context.program, {
-		path: resolvePath(context.emitterOutputDir, "entities.ts"),
-		content: Object.entries(entities)
-			.map(
-				([name, schema]) =>
-					`export const ${name} = ${stringifyObject(schema as unknown as Record<string, unknown>)} as const`,
-			)
-			.join("\n"),
+		path: resolvePath(context.emitterOutputDir, "index.d.ts"),
+		content: declarations.outputText,
+	});
+
+	await emitFile(context.program, {
+		path: resolvePath(context.emitterOutputDir, "index.js"),
+		content: javascript.outputText,
+	});
+
+	await emitFile(context.program, {
+		path: resolvePath(context.emitterOutputDir, "package.json"),
+		content: JSON.stringify(
+			{
+				name: packageName ?? "entities",
+				version: packageVersion ?? "1.0.0",
+				description: "ElectroDB entities",
+				main: "./index.js",
+				types: "./index.d.ts",
+			},
+			null,
+			2,
+		),
 	});
 }

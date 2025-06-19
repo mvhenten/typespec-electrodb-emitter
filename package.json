@@ -35,7 +35,7 @@
 	"scripts": {
 		"build": "tsc",
 		"watch": "tsc --watch",
-		"test": "npm run test:biome && npm run build",
+		"test": "npm run test:biome && npm run build && npm run test:demo",
 		"prepublishOnly": "npm run build",
 		"test:biome": "biome check src",
 		"test:demo": "cd demo; npm i; npm run build"

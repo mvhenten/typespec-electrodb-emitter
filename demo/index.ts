@@ -1,6 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { Person } from "@demo/demo-entities";
 import { Entity } from "electrodb";
-import { Person } from "./tsp-output/typespec-electrodb-emitter/entities";
 
 const client = new DynamoDBClient();
 const table = "electro";
