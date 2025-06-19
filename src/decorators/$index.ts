@@ -69,18 +69,16 @@ const normalizeKey = (target: Model, pattern: Model, keyName: string) => {
 		const composite = getProperty(key, "composite");
 
 		const index = {
-			field: getStringValue(key, "field"),
+			field: getStringValue(key, "field") ?? keyName,
 			composite:
 				composite && composite.kind === "Tuple"
 					? extractFieldNames(target, composite)
 					: [],
 		};
-
-		// biome-ignore lint/performance/noDelete: <explanation>
-		if (index.field === undefined) delete index.field;
 	}
 
 	return {
+		field: keyName,
 		composite: [],
 	};
 };
