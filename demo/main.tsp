@@ -24,6 +24,23 @@ model Contact {
     description: String64;
 }
 
+@entity("job", "org")
+@index(
+    "jobs",
+    {
+        collection: "jobs",
+        index: "gsi1",
+        pk: [Job.personId],
+        sk: [Job.jobId],
+    }
+)
+model Job {
+    pk: UUID;
+    jobId: UUID;
+    personId: UUID;
+    description: string;
+}
+
 @entity("person", "org")
 @index(
     "persons",
@@ -31,11 +48,20 @@ model Contact {
         pk: [Person.pk],
     }
 )
+@index(
+    "jobs",
+    {
+        collection: "jobs",
+        index: "gsi1",
+        pk: [Person.personId],
+        sk: [Person.firstName],
+    }
+)
 model Person {
     @invisible(Lifecycle)
     pk: UUID;
 
-    id: UUID;
+    personId: UUID;
 
     @label("fn")
     firstName: String64;
