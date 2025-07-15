@@ -92,8 +92,7 @@ function emitEnumModel(type: Enum): Attribute {
 	);
 
 	return {
-		type: "set",
-		items,
+		type: items,
 	};
 }
 

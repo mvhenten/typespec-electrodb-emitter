@@ -130,102 +130,153 @@ model Person {
 Will generate the following output:
 
 ```typescript
-export const Person = {
-	attributes: {
-		pk: {
-			type: "string",
-			required: true,
-		},
-		id: {
-			type: "string",
-			required: true,
-		},
-		firstName: {
-			type: "string",
-			required: true,
-			label: "fn",
-		},
-		createdAt: {
-			type: "number",
-			label: "cat",
-			watch: "*",
-			required: true,
-			default: () => Date.now(),
-			set: () => Date.now(),
-		},
-		updatedAt: {
-			type: "number",
-			label: "uat",
-			readOnly: true,
-			required: true,
-			default: () => Date.now(),
-			set: () => Date.now(),
-		},
-		birthDate: {
-			type: "string",
-			required: true,
-		},
-		age: {
-			type: "number",
-			required: true,
-		},
-		address: {
-			type: "map",
-			properties: {
-				street: {
-					type: "string",
-					required: true,
-				},
-				country: {
-					type: "set",
-					items: ["NL", "US", "DE"],
-					required: true,
-				},
-				type: {
-					type: "string",
-					required: true,
-				},
-			},
-			required: true,
-		},
-		contact: {
-			type: "list",
-			items: {
-				type: "map",
-				properties: {
-					value: {
-						type: "string",
-						required: true,
-					},
-					description: {
-						type: "string",
-						required: true,
-					},
-				},
-			},
-			required: true,
-		},
-		nickName: {
-			type: "string",
-			required: false,
-		},
-	},
-	indexes: {
-		persons: {
-			pk: {
-				field: "pk",
-				composite: ["pk"],
-			},
-			sk: {
-				composite: [],
-			},
-		},
-	},
-	model: {
-		entity: "person",
-		service: "org",
-		version: "1",
-	},
-} as const;
+export declare const Job: {
+    readonly attributes: {
+        readonly pk: {
+            readonly type: "string";
+            readonly required: true;
+        };
+        readonly jobId: {
+            readonly type: "string";
+            readonly required: true;
+        };
+        readonly personId: {
+            readonly type: "string";
+            readonly required: true;
+        };
+        readonly description: {
+            readonly type: "string";
+            readonly required: true;
+        };
+    };
+    readonly indexes: {
+        readonly jobs: {
+            readonly pk: {
+                readonly field: "gsi1pk";
+                readonly composite: readonly ["personId"];
+            };
+            readonly sk: {
+                readonly field: "gsi1sk";
+                readonly composite: readonly ["jobId"];
+            };
+            readonly index: "gsi1";
+            readonly collection: "jobs";
+        };
+    };
+    readonly model: {
+        readonly entity: "job";
+        readonly service: "org";
+        readonly version: "1";
+    };
+};
+export declare const Person: {
+    readonly attributes: {
+        readonly pk: {
+            readonly type: "string";
+            readonly required: true;
+        };
+        readonly personId: {
+            readonly type: "string";
+            readonly required: true;
+        };
+        readonly firstName: {
+            readonly type: "string";
+            readonly required: true;
+            readonly label: "fn";
+        };
+        readonly createdAt: {
+            readonly type: "number";
+            readonly label: "cat";
+            readonly watch: "*";
+            readonly required: true;
+            readonly default: () => any;
+            readonly set: () => any;
+        };
+        readonly updatedAt: {
+            readonly type: "number";
+            readonly label: "uat";
+            readonly readOnly: true;
+            readonly required: true;
+            readonly default: () => any;
+            readonly set: () => any;
+        };
+        readonly birthDate: {
+            readonly type: "string";
+            readonly required: true;
+        };
+        readonly age: {
+            readonly type: "number";
+            readonly required: true;
+        };
+        readonly address: {
+            readonly type: "map";
+            readonly properties: {
+                readonly street: {
+                    readonly type: "string";
+                    readonly required: true;
+                };
+                readonly country: {
+                    readonly type: readonly ["NL", "US", "DE"];
+                    readonly required: true;
+                };
+                readonly type: {
+                    readonly type: "string";
+                    readonly required: true;
+                };
+            };
+            readonly required: true;
+        };
+        readonly contact: {
+            readonly type: "list";
+            readonly items: {
+                readonly type: "map";
+                readonly properties: {
+                    readonly value: {
+                        readonly type: "string";
+                        readonly required: true;
+                    };
+                    readonly description: {
+                        readonly type: "string";
+                        readonly required: true;
+                    };
+                };
+            };
+            readonly required: true;
+        };
+        readonly nickName: {
+            readonly type: "string";
+            readonly required: false;
+        };
+    };
+    readonly indexes: {
+        readonly jobs: {
+            readonly pk: {
+                readonly field: "gsi1pk";
+                readonly composite: readonly ["personId"];
+            };
+            readonly sk: {
+                readonly field: "gsi1sk";
+                readonly composite: readonly ["firstName"];
+            };
+            readonly index: "gsi1";
+            readonly collection: "jobs";
+        };
+        readonly persons: {
+            readonly pk: {
+                readonly field: "pk";
+                readonly composite: readonly ["pk"];
+            };
+            readonly sk: {
+                readonly field: "sk";
+                readonly composite: readonly [];
+            };
+        };
+    };
+    readonly model: {
+        readonly entity: "person";
+        readonly service: "org";
+        readonly version: "1";
+    };
+};
 
 ```
