@@ -57,6 +57,16 @@ model Job {
         sk: [Person.firstName],
     }
 )
+@index(
+    "byName",
+    {
+        collection: "jobs",
+        index: "gsi1",
+        scope: "org",
+        pk: [],
+        sk: [Person.firstName],
+    }
+)
 model Person {
     @invisible(Lifecycle)
     pk: UUID;

@@ -100,7 +100,7 @@ export function $index(
 		sk: normalizeKey("sk", { target, pattern }),
 	};
 
-	for (const key of ["index", "collection", "type"]) {
+	for (const key of ["index", "collection", "type", "scope"] as const) {
 		const value = getStringValue(pattern, key);
 
 		if (value) {
