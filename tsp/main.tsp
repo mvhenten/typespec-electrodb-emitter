@@ -9,6 +9,7 @@ enum IndexType {
 model AccessPattern {
     index?: string;
     collection?: string | string[];
+    scope?: string;
     type?: IndexType = IndexType.isolated;
     pk?: ModelProperty[] | {
         field?: string = "pk";
