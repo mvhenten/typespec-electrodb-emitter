@@ -127,13 +127,10 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 	if (ctx.program.stateMap(StateKeys.updatedAt).has(prop)) {
 		assert(type.type === "number", "createdAt must be a number");
 
-		const label = ctx.program.stateMap(StateKeys.updatedAt).get(prop);
-
 		return {
 			...type,
 			type: "number",
-			label,
-			readOnly: true,
+			watch: "*",
 			required: true,
 			default: () => Date.now(),
 			set: () => Date.now(),
@@ -143,13 +140,10 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 	if (ctx.program.stateMap(StateKeys.createdAt).has(prop)) {
 		assert(type.type === "number", "createdAt must be a number");
 
-		const label = ctx.program.stateMap(StateKeys.createdAt).get(prop);
-
 		return {
 			...type,
 			type: "number",
-			label,
-			watch: "*",
+			readOnly: true,
 			required: true,
 			default: () => Date.now(),
 			set: () => Date.now(),
