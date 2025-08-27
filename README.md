@@ -222,6 +222,6 @@ export declare const Person: {
 
 ## Documentation
 
-This extension itself is driven by typspec type definitions, mostly pieced together by reading existing (REST) extensions and https://typespec.io/docs/extending-typespec/create-decorators/
+This extension itself is driven by TypeSpec type definitions, mostly pieced together by reading existing (REST) extensions and https://typespec.io/docs/extending-typespec/create-decorators/
 
 See [./tsp/main.tsp](/tsp/main.tsp) for the type definitions of the annotations. 
