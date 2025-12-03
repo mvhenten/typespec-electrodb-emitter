@@ -1,4 +1,4 @@
-import { type JSONSchemaType, createTypeSpecLibrary } from "@typespec/compiler";
+import { createTypeSpecLibrary, type JSONSchemaType } from "@typespec/compiler";
 export interface EmitterOptions {
 	"package-name": string;
 	"package-version": string;

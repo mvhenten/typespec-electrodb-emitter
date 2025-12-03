@@ -1,7 +1,6 @@
 import type {
 	DecoratorContext,
 	Model,
-	NumericLiteral,
 	StringLiteral,
 } from "@typespec/compiler";
 import { StateKeys } from "../lib.js";
