@@ -67,6 +67,14 @@ model Job {
         sk: [Person.firstName],
     }
 )
+@index(
+    "byAge",
+    {
+        index: "lsi1",
+        pk: [Person.pk],
+        sk: [Person.age],
+    }
+)
 model Person {
     @invisible(Lifecycle)
     pk: UUID;
