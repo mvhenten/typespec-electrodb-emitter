@@ -20,7 +20,7 @@
 	},
 	"devDependencies": {
 		"@babel/types": "^7.27.6",
-		"@biomejs/biome": "1.9.4",
+		"@biomejs/biome": "^2.3.8",
 		"@types/babel__generator": "^7.27.0",
 		"@types/node": "latest",
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
@@ -37,10 +37,14 @@
 	"scripts": {
 		"build": "tsc",
 		"watch": "tsc --watch",
-		"test": "npm run test:biome && npm run build && npm run test:demo",
+		"pretest": "npm run build",
+		"fix": "biome check --write",
+		"lint": "biome check",
+		"test": "npm run test:biome && npm run test:emit && npm run test:unit",
 		"prepublishOnly": "npm run build",
 		"test:biome": "biome check src",
-		"test:demo": "cd demo; npm i; npm run build"
+		"test:emit": "tsp compile test/main.tsp --config test/tspconfig.yaml",
+		"test:unit": "node --test test/*.test.js"
 	},
 	"dependencies": {
 		"@babel/generator": "^7.27.5",

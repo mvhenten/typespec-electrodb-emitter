@@ -1,15 +1,280 @@
-import { Person } from "../build/entities/index.js";
-
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
+import { Job, Person } from "../build/entities/index.js";
 
-suite("Entities", () => {
-	test("Person entity has correct attributes", () => {
-		const personAttributes = Person.attributes;
+suite("Job Entity", () => {
+	test("Job entity has correct model configuration", () => {
+		assert.deepEqual(Job.model, {
+			entity: "job",
+			service: "org",
+			version: "1",
+		});
+	});
 
-		assert.deepEqual(personAttributes.pk, {
+	test("Job entity has all required attributes", () => {
+		const attrs = Job.attributes;
+
+		assert.deepEqual(attrs.pk, {
 			type: "string",
 			required: true,
+		});
+
+		assert.deepEqual(attrs.jobId, {
+			type: "string",
+			required: true,
+		});
+
+		assert.deepEqual(attrs.personId, {
+			type: "string",
+			required: true,
+		});
+
+		assert.deepEqual(attrs.description, {
+			type: "string",
+			required: true,
+		});
+	});
+
+	test("Job entity has correct index configuration", () => {
+		const jobsIndex = Job.indexes.jobs;
+
+		assert.deepEqual(jobsIndex.pk, {
+			field: "gsi1pk",
+			composite: ["personId"],
+		});
+
+		assert.deepEqual(jobsIndex.sk, {
+			field: "gsi1sk",
+			composite: ["jobId"],
+		});
+
+		assert.equal(jobsIndex.index, "gsi1");
+		assert.equal(jobsIndex.collection, "jobs");
+	});
+});
+
+suite("Person Entity", () => {
+	test("Person entity has correct model configuration", () => {
+		assert.deepEqual(Person.model, {
+			entity: "person",
+			service: "org",
+			version: "1",
+		});
+	});
+
+	suite("Basic Attributes", () => {
+		test("pk attribute is string and required", () => {
+			assert.deepEqual(Person.attributes.pk, {
+				type: "string",
+				required: true,
+			});
+		});
+
+		test("personId attribute is string and required", () => {
+			assert.deepEqual(Person.attributes.personId, {
+				type: "string",
+				required: true,
+			});
+		});
+
+		test("birthDate (utcDateTime) is mapped to string type", () => {
+			assert.deepEqual(Person.attributes.birthDate, {
+				type: "string",
+				required: true,
+			});
+		});
+
+		test("age (int16) is mapped to number type", () => {
+			assert.deepEqual(Person.attributes.age, {
+				type: "number",
+				required: true,
+			});
+		});
+	});
+
+	suite("@label decorator", () => {
+		test("firstName has label 'fn'", () => {
+			assert.equal(Person.attributes.firstName.label, "fn");
+			assert.equal(Person.attributes.firstName.type, "string");
+			assert.equal(Person.attributes.firstName.required, true);
+		});
+	});
+
+	suite("@createdAt decorator", () => {
+		test("createdAt has readOnly and default function", () => {
+			const createdAt = Person.attributes.createdAt;
+
+			assert.equal(createdAt.type, "number");
+			assert.equal(createdAt.readOnly, true);
+			assert.equal(createdAt.required, true);
+			assert.equal(typeof createdAt.default, "function");
+			assert.equal(typeof createdAt.set, "function");
+		});
+
+		test("createdAt default returns timestamp", () => {
+			const before = Date.now();
+			const result = Person.attributes.createdAt.default();
+			const after = Date.now();
+
+			assert.ok(result >= before && result <= after);
+		});
+	});
+
+	suite("@updatedAt decorator", () => {
+		test("updatedAt has watch='*' and default function", () => {
+			const updatedAt = Person.attributes.updatedAt;
+
+			assert.equal(updatedAt.type, "number");
+			assert.equal(updatedAt.watch, "*");
+			assert.equal(updatedAt.required, true);
+			assert.equal(typeof updatedAt.default, "function");
+			assert.equal(typeof updatedAt.set, "function");
+		});
+
+		test("updatedAt set returns timestamp", () => {
+			const before = Date.now();
+			const result = Person.attributes.updatedAt.set();
+			const after = Date.now();
+
+			assert.ok(result >= before && result <= after);
+		});
+	});
+
+	suite("Optional fields", () => {
+		test("nickName is optional (required: false)", () => {
+			assert.deepEqual(Person.attributes.nickName, {
+				type: "string",
+				required: false,
+			});
+		});
+	});
+
+	suite("Nested map type (Address)", () => {
+		test("address is a map type with required: true", () => {
+			assert.equal(Person.attributes.address.type, "map");
+			assert.equal(Person.attributes.address.required, true);
+		});
+
+		test("address.street property is string", () => {
+			assert.deepEqual(Person.attributes.address.properties.street, {
+				type: "string",
+				required: true,
+			});
+		});
+
+		test("address.country property has enum values", () => {
+			assert.deepEqual(Person.attributes.address.properties.country, {
+				type: ["NL", "US", "DE"],
+				required: true,
+			});
+		});
+
+		test("address.type property (union literal) is string", () => {
+			assert.deepEqual(Person.attributes.address.properties.type, {
+				type: "string",
+				required: true,
+			});
+		});
+	});
+
+	suite("List type (Contact[])", () => {
+		test("contact is a list type with required: true", () => {
+			assert.equal(Person.attributes.contact.type, "list");
+			assert.equal(Person.attributes.contact.required, true);
+		});
+
+		test("contact items are map type", () => {
+			assert.equal(Person.attributes.contact.items.type, "map");
+		});
+
+		test("contact item has value property", () => {
+			assert.deepEqual(Person.attributes.contact.items.properties.value, {
+				type: "string",
+				required: true,
+			});
+		});
+
+		test("contact item has description property", () => {
+			assert.deepEqual(
+				Person.attributes.contact.items.properties.description,
+				{
+					type: "string",
+					required: true,
+				},
+			);
+		});
+	});
+
+	suite("Index configurations", () => {
+		test("persons index (primary, pk only)", () => {
+			const personsIndex = Person.indexes.persons;
+
+			assert.deepEqual(personsIndex.pk, {
+				field: "pk",
+				composite: ["pk"],
+			});
+
+			assert.deepEqual(personsIndex.sk, {
+				field: "sk",
+				composite: [],
+			});
+
+			// Primary index has no 'index' property
+			assert.equal(personsIndex.index, undefined);
+		});
+
+		test("jobs index (GSI with collection)", () => {
+			const jobsIndex = Person.indexes.jobs;
+
+			assert.deepEqual(jobsIndex.pk, {
+				field: "gsi1pk",
+				composite: ["personId"],
+			});
+
+			assert.deepEqual(jobsIndex.sk, {
+				field: "gsi1sk",
+				composite: ["firstName"],
+			});
+
+			assert.equal(jobsIndex.index, "gsi1");
+			assert.equal(jobsIndex.collection, "jobs");
+		});
+
+		test("byName index (GSI with scope and empty pk)", () => {
+			const byNameIndex = Person.indexes.byName;
+
+			assert.deepEqual(byNameIndex.pk, {
+				field: "gsi1pk",
+				composite: [],
+			});
+
+			assert.deepEqual(byNameIndex.sk, {
+				field: "gsi1sk",
+				composite: ["firstName"],
+			});
+
+			assert.equal(byNameIndex.index, "gsi1");
+			assert.equal(byNameIndex.collection, "jobs");
+			assert.equal(byNameIndex.scope, "org");
+		});
+
+		test("byAge index (LSI with pk matching primary index)", () => {
+			const byAgeIndex = Person.indexes.byAge;
+
+			// LSI pk field and composite must match the primary index
+			assert.deepEqual(byAgeIndex.pk, {
+				field: "pk",
+				composite: ["pk"],
+			});
+
+			assert.deepEqual(byAgeIndex.sk, {
+				field: "lsi1sk",
+				composite: ["age"],
+			});
+
+			assert.equal(byAgeIndex.index, "lsi1");
+			// LSI has no collection
+			assert.equal(byAgeIndex.collection, undefined);
 		});
 	});
 });
