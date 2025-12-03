@@ -137,3 +137,5 @@ dist
 demo/tsp-output
 demo/demo-entities
 demo/package-lock.json
+build
+dist
