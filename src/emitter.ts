@@ -185,7 +185,7 @@ export async function $onEmit(context: EmitContext) {
 	const packageName = context.options["package-name"];
 	const packageVersion = context.options["package-version"];
 
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	// biome-ignore lint/suspicious/noExplicitAny: <ElecroDB Schema>
 	const entities: Record<string, Schema<any, any, any>> = {};
 
 	for (const [model, props] of context.program
