@@ -55,6 +55,8 @@ const getStringValue = (source: Model, name: string) => {
 	}
 };
 
+const isLocalSecondaryIndex = (index: string) => /^lsi[1-5]$/.test(index);
+
 const normalizeKey = (
 	keyName: string,
 	params: { target: Model; pattern: Model },
@@ -63,9 +65,13 @@ const normalizeKey = (
 	const key = getProperty(pattern, keyName);
 	const index = getStringValue(pattern, "index") ?? "";
 
+	// LSI (Local Secondary Index) must share the same pk as the primary index
+	const fieldPrefix =
+		keyName === "pk" && isLocalSecondaryIndex(index) ? "" : index;
+
 	if (key && key.kind === "Tuple") {
 		return {
-			field: `${index}${keyName}`,
+			field: `${fieldPrefix}${keyName}`,
 			composite: extractFieldNames(target, key),
 		};
 	}
@@ -83,7 +89,7 @@ const normalizeKey = (
 	}
 
 	return {
-		field: `${index}${keyName}`,
+		field: `${fieldPrefix}${keyName}`,
 		composite: [],
 	};
 };
