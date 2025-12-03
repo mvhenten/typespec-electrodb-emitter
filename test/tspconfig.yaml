@@ -1,0 +1,7 @@
+emit:
+  - "typespec-electrodb-emitter"
+options:
+  "typespec-electrodb-emitter":
+    package-name: "@mycorp/ddb-entities"
+    package-version: "0.1.0"
+    emitter-output-dir: "{cwd}/build/entities"
