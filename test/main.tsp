@@ -7,6 +7,18 @@ scalar String64 extends string;
 @minLength(25)
 scalar UUID extends string;
 
+enum PersonStatus {
+    ACTIVE: "01",
+    INACTIVE: "02",
+    DELETED: "03",
+}
+
+enum CoffeePreferences {
+    MILK: "01",
+    SUGAR: "02",
+    SWEETENER: "03",
+}
+
 enum CountryCode {
     NL,
     US,
@@ -91,4 +103,8 @@ model Person {
     address: Address;
     contact: Contact[];
     nickName?: string;
+
+    status: PersonStatus;
+
+    coffeePreferences: CoffeePreferences[];
 }
