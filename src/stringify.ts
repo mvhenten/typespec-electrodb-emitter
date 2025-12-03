@@ -3,6 +3,13 @@ import { generate } from "@babel/generator";
 import { parseExpression } from "@babel/parser";
 import type { Expression, ObjectExpression } from "@babel/types";
 
+/**
+ * Marker class for raw code expressions that should be emitted as-is
+ */
+export class RawCode {
+	constructor(public readonly code: string) {}
+}
+
 function isObjectExpression(target: unknown): target is ObjectExpression {
 	return (target as Expression | undefined)?.type === "ObjectExpression";
 }
@@ -26,6 +33,10 @@ const stringifyValue = (value: unknown) => {
 		case "boolean":
 			return value.toString();
 		case "object":
+			if (value instanceof RawCode) {
+				return value.code;
+			}
+
 			if (Array.isArray(value)) {
 				return stringifyArray(value);
 			}
@@ -45,7 +56,9 @@ const stringifyArray = (value: unknown[]): string => {
 };
 
 const stringifyKeyValue = (key: string, value: unknown) => {
-	return parseExpression(`{ ${key}: ${stringifyValue(value)} }`);
+	return parseExpression(`{ ${key}: ${stringifyValue(value)} }`, {
+		plugins: ["typescript"],
+	});
 };
 
 /**
