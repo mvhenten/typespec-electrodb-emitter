@@ -59,9 +59,22 @@ function emitScalar(type: Scalar): Attribute {
 }
 
 function emitArrayModel(type: ArrayModelType): Attribute {
+	const elementType = type.indexer.value;
+
+	// Enum arrays should be emitted as DynamoDB/ElectroDB "set" type
+	if (elementType.kind === "Enum") {
+		const items = Array.from(elementType.members).map(
+			([key, member]) => `${member.value ?? key}`,
+		);
+		return {
+			type: "set",
+			items,
+		};
+	}
+
 	return {
 		type: "list",
-		items: emitType(type.indexer.value) as CustomAttribute,
+		items: emitType(elementType) as CustomAttribute,
 	};
 }
 

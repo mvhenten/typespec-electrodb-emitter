@@ -205,6 +205,29 @@ suite("Person Entity", () => {
 		});
 	});
 
+	suite("Set type (CoffeePreferences[] - enum array)", () => {
+		test("coffeePreferences is a set type with required: true", () => {
+			assert.equal(Person.attributes.coffeePreferences.type, "set");
+			assert.equal(Person.attributes.coffeePreferences.required, true);
+		});
+
+		test("coffeePreferences items contain enum values", () => {
+			assert.deepEqual(Person.attributes.coffeePreferences.items, [
+				"01",
+				"02",
+				"03",
+			]);
+		});
+
+		test("coffeePreferences has correct full structure", () => {
+			assert.deepEqual(Person.attributes.coffeePreferences, {
+				type: "set",
+				items: ["01", "02", "03"],
+				required: true,
+			});
+		});
+	});
+
 	suite("Index configurations", () => {
 		test("persons index (primary, pk only)", () => {
 			const personsIndex = Person.indexes.persons;
