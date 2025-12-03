@@ -169,9 +169,9 @@ suite("Person Entity", () => {
 			});
 		});
 
-		test("address.type property (union literal) is string", () => {
+		test("address.type property (literal union) has enum-like values", () => {
 			assert.deepEqual(Person.attributes.address.properties.type, {
-				type: "string",
+				type: ["home", "work", "other"],
 				required: true,
 			});
 		});
@@ -225,6 +225,34 @@ suite("Person Entity", () => {
 				items: ["01", "02", "03"],
 				required: true,
 			});
+		});
+	});
+
+	suite("Union type (Info[] with BooleanValue | Int64Value)", () => {
+		test("additionalInfo is a list type with required: true", () => {
+			assert.equal(Person.attributes.additionalInfo.type, "list");
+			assert.equal(Person.attributes.additionalInfo.required, true);
+		});
+
+		test("additionalInfo items are map type", () => {
+			assert.equal(Person.attributes.additionalInfo.items.type, "map");
+		});
+
+		test("additionalInfo item has name property as string", () => {
+			assert.deepEqual(
+				Person.attributes.additionalInfo.items.properties.name,
+				{
+					type: "string",
+					required: true,
+				},
+			);
+		});
+
+		test("additionalInfo item value property uses CustomAttributeType for union", () => {
+			const valueAttr = Person.attributes.additionalInfo.items.properties.value;
+			// CustomAttributeType("any") returns "any" at runtime
+			assert.equal(valueAttr.type, "any");
+			assert.equal(valueAttr.required, true);
 		});
 	});
 

@@ -7,6 +7,7 @@ import type {
 	RecordModelType,
 	Scalar,
 	Type,
+	Union,
 } from "@typespec/compiler";
 import {
 	type EmitContext,
@@ -18,7 +19,7 @@ import type { Attribute, CustomAttribute, Schema } from "electrodb";
 import * as ts from "typescript";
 
 import { StateKeys } from "./lib.js";
-import { stringifyObject } from "./stringify.js";
+import { RawCode, stringifyObject } from "./stringify.js";
 
 function emitIntrinsincScalar(type: Scalar) {
 	switch (type.name) {
@@ -109,6 +110,105 @@ function emitEnumModel(type: Enum): Attribute {
 	};
 }
 
+function emitTypeToTypeScript(type: Type): string {
+	switch (type.kind) {
+		case "Scalar": {
+			let baseType = type;
+			while (baseType.baseScalar) {
+				baseType = baseType.baseScalar;
+			}
+			switch (baseType.name) {
+				case "boolean":
+					return "boolean";
+				case "numeric":
+				case "integer":
+				case "float":
+				case "int64":
+				case "int32":
+				case "int16":
+				case "int8":
+				case "uint64":
+				case "uint32":
+				case "uint16":
+				case "uint8":
+				case "safeint":
+				case "float32":
+				case "float64":
+				case "decimal":
+				case "decimal128":
+					return "number";
+				default:
+					return "string";
+			}
+		}
+		case "Model": {
+			if (type.name === "Array") {
+				const arrayType = type as ArrayModelType;
+				return `${emitTypeToTypeScript(arrayType.indexer.value)}[]`;
+			}
+			const properties: string[] = [];
+			for (const prop of walkPropertiesInherited(type as RecordModelType)) {
+				const optional = prop.optional ? "?" : "";
+				properties.push(
+					`${prop.name}${optional}: ${emitTypeToTypeScript(prop.type)}`,
+				);
+			}
+			return `{ ${properties.join("; ")} }`;
+		}
+		case "Enum": {
+			const values = Array.from(type.members)
+				.map(([key, member]) => `"${member.value ?? key}"`)
+				.join(" | ");
+			return values;
+		}
+		case "Union": {
+			const variants = Array.from(type.variants.values())
+				.map((variant) => emitTypeToTypeScript(variant.type))
+				.join(" | ");
+			return variants;
+		}
+		default:
+			return "any";
+	}
+}
+
+function isLiteralUnion(type: Union): string[] | null {
+	const literals: string[] = [];
+
+	for (const variant of type.variants.values()) {
+		// Check if this variant is a string or number literal
+		if (variant.type.kind === "String") {
+			literals.push(variant.type.value);
+		} else if (variant.type.kind === "Number") {
+			literals.push(String(variant.type.value));
+		} else {
+			// Not a literal union, return null
+			return null;
+		}
+	}
+
+	return literals;
+}
+
+function emitUnion(type: Union): Attribute {
+	// Check if this is a simple literal union (e.g., "home" | "work" | "other")
+	const literals = isLiteralUnion(type);
+	if (literals) {
+		// Emit as enum-like array, similar to how named enums are handled
+		return {
+			type: literals,
+		};
+	}
+
+	// Complex union - use CustomAttributeType
+	const tsType = emitTypeToTypeScript(type);
+	// RawCode is used to emit the CustomAttributeType function call as-is
+	return {
+		// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
+		type: new RawCode(`CustomAttributeType<${tsType}>("any")`),
+	};
+}
+
 function emitType(type: Type): Attribute {
 	switch (type.kind) {
 		case "Scalar":
@@ -118,7 +218,7 @@ function emitType(type: Type): Attribute {
 		case "Enum":
 			return emitEnumModel(type);
 		case "Union":
-			return { type: "string" };
+			return emitUnion(type);
 		default:
 			throw new Error(`Type kind ${type.kind} is currently not supported!`);
 	}
@@ -219,12 +319,22 @@ export async function $onEmit(context: EmitContext) {
 		};
 	}
 
-	const typescriptSource = Object.entries(entities)
+	const entityDefinitions = Object.entries(entities)
 		.map(
 			([name, schema]) =>
 				`export const ${name} = ${stringifyObject(schema as unknown as Record<string, unknown>)} as const`,
 		)
 		.join("\n");
+
+	// Add CustomAttributeType import if any union types are used
+	const hasCustomAttributeType = entityDefinitions.includes(
+		"CustomAttributeType",
+	);
+	const imports = hasCustomAttributeType
+		? 'import { CustomAttributeType } from "electrodb";\n\n'
+		: "";
+
+	const typescriptSource = imports + entityDefinitions;
 
 	const declarations = await ts.transpileDeclaration(typescriptSource, {});
 	const javascript = await ts.transpileModule(typescriptSource, {});

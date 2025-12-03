@@ -24,6 +24,20 @@ enum CountryCode {
     US,
     DE,
 }
+model Int64Value {
+    value: int64;
+    type: "int64";
+}
+
+model BooleanValue {
+    value: boolean;
+    type: "boolean";
+}
+
+model Info {
+    name: string;
+    value: BooleanValue | Int64Value;
+}
 
 model Address {
     street: String64;
@@ -105,6 +119,8 @@ model Person {
     nickName?: string;
 
     status: PersonStatus;
+
+    additionalInfo: Info[];
 
     coffeePreferences: CoffeePreferences[];
 }
