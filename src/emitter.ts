@@ -8,6 +8,7 @@ import type {
 	Scalar,
 	Type,
 	Union,
+	Value,
 } from "@typespec/compiler";
 import {
 	type EmitContext,
@@ -20,6 +21,29 @@ import * as ts from "typescript";
 
 import { StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
+
+/**
+ * Extracts a primitive default value from a TypeSpec Value.
+ * Returns undefined if the value cannot be converted to a simple default.
+ */
+function extractDefaultValue(
+	value: Value,
+): string | number | boolean | undefined {
+	switch (value.valueKind) {
+		case "StringValue":
+			return value.value;
+		case "NumericValue":
+			return Number(value.value.asNumber());
+		case "BooleanValue":
+			return value.value;
+		case "EnumValue":
+			// For enum values, use the value if specified, otherwise use the member name
+			return value.value.value ?? value.value.name;
+		default:
+			// Complex values (objects, arrays) are not supported as simple defaults
+			return undefined;
+	}
+}
 
 function emitIntrinsincScalar(type: Scalar) {
 	switch (type.name) {
@@ -225,10 +249,21 @@ function emitType(type: Type): Attribute {
 }
 
 function emitModelProperty(prop: ModelProperty): Attribute {
-	return {
+	const attr: Attribute = {
 		...emitType(prop.type),
 		required: !prop.optional,
 	};
+
+	// Add default value if present
+	if (prop.defaultValue) {
+		const defaultValue = extractDefaultValue(prop.defaultValue);
+		if (defaultValue !== undefined) {
+			// @ts-expect-error - default is a valid ElectroDB attribute property
+			attr.default = defaultValue;
+		}
+	}
+
+	return attr;
 }
 
 const getLabel = (ctx: EmitContext, prop: ModelProperty) =>
@@ -272,6 +307,15 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 	if (label) {
 		// @ts-expect-error
 		attr.label = label;
+	}
+
+	// Add default value if present
+	if (prop.defaultValue) {
+		const defaultValue = extractDefaultValue(prop.defaultValue);
+		if (defaultValue !== undefined) {
+			// @ts-expect-error - default is a valid ElectroDB attribute property
+			attr.default = defaultValue;
+		}
 	}
 
 	return attr;

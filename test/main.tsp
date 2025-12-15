@@ -67,6 +67,35 @@ model Job {
     description: string;
 }
 
+enum Priority {
+    LOW,
+    MEDIUM,
+    HIGH,
+}
+
+model SettingsItem {
+    key: string;
+    value: string = "default";
+    enabled: boolean = true;
+}
+
+@entity("task", "org")
+@index(
+    "tasks",
+    {
+        pk: [Task.pk],
+    }
+)
+model Task {
+    pk: UUID;
+    title: string;
+    description?: string = "No description provided";
+    priority: Priority = Priority.MEDIUM;
+    count: int32 = 0;
+    active: boolean = true;
+    settings: SettingsItem[];
+}
+
 @entity("person", "org")
 @index(
     "persons",

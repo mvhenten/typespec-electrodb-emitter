@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
-import { Job, Person } from "../build/entities/index.js";
+import { Job, Person, Task } from "../build/entities/index.js";
 
 suite("Job Entity", () => {
 	test("Job entity has correct model configuration", () => {
@@ -50,6 +50,86 @@ suite("Job Entity", () => {
 
 		assert.equal(jobsIndex.index, "gsi1");
 		assert.equal(jobsIndex.collection, "jobs");
+	});
+});
+
+suite("Task Entity - Default Values", () => {
+	test("Task entity has correct model configuration", () => {
+		assert.deepEqual(Task.model, {
+			entity: "task",
+			service: "org",
+			version: "1",
+		});
+	});
+
+	suite("String default values", () => {
+		test("optional description has string default", () => {
+			assert.deepEqual(Task.attributes.description, {
+				type: "string",
+				required: false,
+				default: "No description provided",
+			});
+		});
+	});
+
+	suite("Enum default values", () => {
+		test("priority has enum default value", () => {
+			assert.deepEqual(Task.attributes.priority, {
+				type: ["LOW", "MEDIUM", "HIGH"],
+				required: true,
+				default: "MEDIUM",
+			});
+		});
+	});
+
+	suite("Number default values", () => {
+		test("count has number default value", () => {
+			assert.deepEqual(Task.attributes.count, {
+				type: "number",
+				required: true,
+				default: 0,
+			});
+		});
+	});
+
+	suite("Boolean default values", () => {
+		test("active has boolean default value", () => {
+			assert.deepEqual(Task.attributes.active, {
+				type: "boolean",
+				required: true,
+				default: true,
+			});
+		});
+	});
+
+	suite("Nested model default values", () => {
+		test("settings is a list type", () => {
+			assert.equal(Task.attributes.settings.type, "list");
+			assert.equal(Task.attributes.settings.items.type, "map");
+		});
+
+		test("settings item value property has string default", () => {
+			assert.deepEqual(Task.attributes.settings.items.properties.value, {
+				type: "string",
+				required: true,
+				default: "default",
+			});
+		});
+
+		test("settings item enabled property has boolean default", () => {
+			assert.deepEqual(Task.attributes.settings.items.properties.enabled, {
+				type: "boolean",
+				required: true,
+				default: true,
+			});
+		});
+
+		test("settings item key property has no default", () => {
+			assert.deepEqual(Task.attributes.settings.items.properties.key, {
+				type: "string",
+				required: true,
+			});
+		});
 	});
 });
 
@@ -195,13 +275,10 @@ suite("Person Entity", () => {
 		});
 
 		test("contact item has description property", () => {
-			assert.deepEqual(
-				Person.attributes.contact.items.properties.description,
-				{
-					type: "string",
-					required: true,
-				},
-			);
+			assert.deepEqual(Person.attributes.contact.items.properties.description, {
+				type: "string",
+				required: true,
+			});
 		});
 	});
 
@@ -239,13 +316,10 @@ suite("Person Entity", () => {
 		});
 
 		test("additionalInfo item has name property as string", () => {
-			assert.deepEqual(
-				Person.attributes.additionalInfo.items.properties.name,
-				{
-					type: "string",
-					required: true,
-				},
-			);
+			assert.deepEqual(Person.attributes.additionalInfo.items.properties.name, {
+				type: "string",
+				required: true,
+			});
 		});
 
 		test("additionalInfo item value property uses CustomAttributeType for union", () => {
