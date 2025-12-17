@@ -72,12 +72,13 @@ suite("Task Entity - Default Values", () => {
 	});
 
 	suite("Enum default values", () => {
-		test("priority has enum default value with validation", () => {
-			// Enums get validation to ensure value is in allowed set
-			assert.deepEqual(Task.attributes.priority.type, ["LOW", "MEDIUM", "HIGH"]);
-			assert.equal(Task.attributes.priority.required, true);
-			assert.equal(Task.attributes.priority.default, "MEDIUM");
-			assert.equal(typeof Task.attributes.priority.validate, "function");
+		test("priority has enum default value", () => {
+			// Enums are validated natively by ElectroDB when type is an array
+			assert.deepEqual(Task.attributes.priority, {
+				type: ["LOW", "MEDIUM", "HIGH"],
+				required: true,
+				default: "MEDIUM",
+			});
 		});
 	});
 
@@ -133,42 +134,47 @@ suite("Task Entity - Default Values", () => {
 });
 
 suite("Validation Functions", () => {
-	suite("String length validation (UUID - @minLength(25) @maxLength(25))", () => {
-		test("accepts strings of exactly 25 characters", () => {
-			const validate = Job.attributes.pk.validate;
-			// Should not throw for valid length
-			assert.doesNotThrow(() => validate("1234567890123456789012345"));
-		});
+	suite(
+		"String length validation (UUID - @minLength(25) @maxLength(25))",
+		() => {
+			test("accepts strings of exactly 25 characters", () => {
+				const validate = Job.attributes.pk.validate;
+				// Returns true for valid values
+				assert.equal(validate("1234567890123456789012345"), true);
+			});
 
-		test("rejects strings shorter than 25 characters", () => {
-			const validate = Job.attributes.pk.validate;
-			assert.throws(
-				() => validate("too-short"),
-				/Value must be at least 25 characters/
-			);
-		});
+			test("rejects strings shorter than 25 characters", () => {
+				const validate = Job.attributes.pk.validate;
+				// Throws Error for invalid values
+				assert.throws(
+					() => validate("too-short"),
+					/Value must be at least 25 characters/,
+				);
+			});
 
-		test("rejects strings longer than 25 characters", () => {
-			const validate = Job.attributes.pk.validate;
-			assert.throws(
-				() => validate("this-string-is-way-too-long-for-uuid"),
-				/Value must be at most 25 characters/
-			);
-		});
-	});
+			test("rejects strings longer than 25 characters", () => {
+				const validate = Job.attributes.pk.validate;
+				// Throws Error for invalid values
+				assert.throws(
+					() => validate("this-string-is-way-too-long-for-uuid"),
+					/Value must be at most 25 characters/,
+				);
+			});
+		},
+	);
 
 	suite("String maxLength validation (String64 - @maxLength(64))", () => {
 		test("accepts strings up to 64 characters", () => {
 			const validate = Person.attributes.firstName.validate;
-			assert.doesNotThrow(() => validate("John"));
-			assert.doesNotThrow(() => validate("A".repeat(64)));
+			assert.equal(validate("John"), true);
+			assert.equal(validate("A".repeat(64)), true);
 		});
 
 		test("rejects strings longer than 64 characters", () => {
 			const validate = Person.attributes.firstName.validate;
 			assert.throws(
 				() => validate("A".repeat(65)),
-				/Value must be at most 64 characters/
+				/Value must be at most 64 characters/,
 			);
 		});
 	});
@@ -176,86 +182,42 @@ suite("Validation Functions", () => {
 	suite("Integer validation (int16, int32)", () => {
 		test("accepts integer values", () => {
 			const validate = Person.attributes.age.validate;
-			assert.doesNotThrow(() => validate(25));
-			assert.doesNotThrow(() => validate(0));
-			assert.doesNotThrow(() => validate(-10));
+			assert.equal(validate(25), true);
+			assert.equal(validate(0), true);
+			assert.equal(validate(-10), true);
 		});
 
 		test("rejects non-integer values", () => {
 			const validate = Person.attributes.age.validate;
-			assert.throws(
-				() => validate(25.5),
-				/Value must be an integer/
-			);
-			assert.throws(
-				() => validate(3.14159),
-				/Value must be an integer/
-			);
+			assert.throws(() => validate(25.5), /Value must be an integer/);
+			assert.throws(() => validate(Math.PI), /Value must be an integer/);
 		});
 	});
 
 	suite("DateTime validation (utcDateTime)", () => {
 		test("accepts valid ISO date strings", () => {
 			const validate = Person.attributes.birthDate.validate;
-			assert.doesNotThrow(() => validate("2023-01-15T10:30:00Z"));
-			assert.doesNotThrow(() => validate("2023-01-15"));
-			assert.doesNotThrow(() => validate("2023-01-15T10:30:00.000Z"));
+			assert.equal(validate("2023-01-15T10:30:00Z"), true);
+			assert.equal(validate("2023-01-15"), true);
+			assert.equal(validate("2023-01-15T10:30:00.000Z"), true);
 		});
 
 		test("rejects invalid date strings", () => {
 			const validate = Person.attributes.birthDate.validate;
 			assert.throws(
 				() => validate("not-a-date"),
-				/Value must be a valid UTC date-time string/
+				/Value must be a valid UTC date-time string/,
 			);
 			assert.throws(
 				() => validate("invalid"),
-				/Value must be a valid UTC date-time string/
+				/Value must be a valid UTC date-time string/,
 			);
 		});
 	});
 
-	suite("Enum validation (Priority enum)", () => {
-		test("accepts valid enum values", () => {
-			const validate = Task.attributes.priority.validate;
-			assert.doesNotThrow(() => validate("LOW"));
-			assert.doesNotThrow(() => validate("MEDIUM"));
-			assert.doesNotThrow(() => validate("HIGH"));
-		});
-
-		test("rejects invalid enum values", () => {
-			const validate = Task.attributes.priority.validate;
-			assert.throws(
-				() => validate("INVALID"),
-				/Value must be one of: LOW, MEDIUM, HIGH/
-			);
-			assert.throws(
-				() => validate("low"),
-				/Value must be one of: LOW, MEDIUM, HIGH/
-			);
-		});
-	});
-
-	suite("Enum validation with custom values (PersonStatus)", () => {
-		test("accepts valid enum values", () => {
-			const validate = Person.attributes.status.validate;
-			assert.doesNotThrow(() => validate("01"));
-			assert.doesNotThrow(() => validate("02"));
-			assert.doesNotThrow(() => validate("03"));
-		});
-
-		test("rejects invalid enum values", () => {
-			const validate = Person.attributes.status.validate;
-			assert.throws(
-				() => validate("ACTIVE"),
-				/Value must be one of: 01, 02, 03/
-			);
-			assert.throws(
-				() => validate("1"),
-				/Value must be one of: 01, 02, 03/
-			);
-		});
-	});
+	// Note: Enum validation is handled natively by ElectroDB when type is an array
+	// e.g., type: ["LOW", "MEDIUM", "HIGH"], so no custom validate function is generated
+	// Runtime validation tests are in electrodb.test.ts
 });
 
 suite("Person Entity", () => {
@@ -472,7 +434,7 @@ suite("Person Entity", () => {
 			});
 
 			// Primary index has no 'index' property
-			assert.equal(personsIndex.index, undefined);
+			assert.equal("index" in personsIndex, false);
 		});
 
 		test("jobs index (GSI with collection)", () => {
@@ -526,7 +488,7 @@ suite("Person Entity", () => {
 
 			assert.equal(byAgeIndex.index, "lsi1");
 			// LSI has no collection
-			assert.equal(byAgeIndex.collection, undefined);
+			assert.equal("collection" in byAgeIndex, false);
 		});
 	});
 });

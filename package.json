@@ -26,12 +26,12 @@
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
 		"@typescript-eslint/parser": "^8.15.0",
 		"conventional-changelog-conventionalcommits": "^9.0.0",
-		"electrodb": "^3.4.3",
+		"electrodb": "^3.5.0",
 		"eslint": "^9.15.0",
 		"prettier": "^3.3.3",
 		"recast": "^0.23.11",
 		"semantic-release": "^24.2.7",
-		"tsx": "^4.20.3",
+		"tsx": "^4.21.0",
 		"typescript": "^5.8.3"
 	},
 	"scripts": {
@@ -40,11 +40,12 @@
 		"pretest": "npm run build",
 		"fix": "biome check --write",
 		"lint": "biome check",
-		"test": "npm run test:biome && npm run test:emit && npm run test:unit",
+		"test": "npm run test:biome && npm run test:emit && npm run test:types && npm run test:unit",
 		"prepublishOnly": "npm run build",
 		"test:biome": "biome check src",
 		"test:emit": "tsp compile test/main.tsp --config test/tspconfig.yaml",
-		"test:unit": "node --test test/*.test.js"
+		"test:unit": "node --import tsx --test test/**.test.ts",
+		"test:types": "tsc -p tsconfig.test.json"
 	},
 	"dependencies": {
 		"@babel/generator": "^7.27.5",

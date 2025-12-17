@@ -180,47 +180,49 @@ interface ValidationConstraints {
 
 /**
  * Builds a validation function for ElectroDB based on constraints.
+ * Returns false if valid, or an error string if invalid.
+ * Cast to boolean to match ElectroDB's type signature.
  */
 function buildValidationFunction(
 	constraints: ValidationConstraints,
-): ((value: unknown) => void) | undefined {
+): ((value: unknown) => boolean) | undefined {
 	const checks: string[] = [];
 
 	// String length validation
 	if (constraints.minLength !== undefined) {
 		checks.push(
-			`if (typeof value === "string" && value.length < ${constraints.minLength}) throw new Error("Value must be at least ${constraints.minLength} characters")`,
+			`if (typeof value === "string" && value.length < ${constraints.minLength}) return "Value must be at least ${constraints.minLength} characters"`,
 		);
 	}
 	if (constraints.maxLength !== undefined) {
 		checks.push(
-			`if (typeof value === "string" && value.length > ${constraints.maxLength}) throw new Error("Value must be at most ${constraints.maxLength} characters")`,
+			`if (typeof value === "string" && value.length > ${constraints.maxLength}) return "Value must be at most ${constraints.maxLength} characters"`,
 		);
 	}
 
 	// Numeric validation
 	if (constraints.minValue !== undefined) {
 		checks.push(
-			`if (typeof value === "number" && value < ${constraints.minValue}) throw new Error("Value must be at least ${constraints.minValue}")`,
+			`if (typeof value === "number" && value < ${constraints.minValue}) return "Value must be at least ${constraints.minValue}"`,
 		);
 	}
 	if (constraints.maxValue !== undefined) {
 		checks.push(
-			`if (typeof value === "number" && value > ${constraints.maxValue}) throw new Error("Value must be at most ${constraints.maxValue}")`,
+			`if (typeof value === "number" && value > ${constraints.maxValue}) return "Value must be at most ${constraints.maxValue}"`,
 		);
 	}
 
 	// Integer validation
 	if (constraints.isInteger) {
 		checks.push(
-			`if (typeof value === "number" && !Number.isInteger(value)) throw new Error("Value must be an integer")`,
+			`if (typeof value === "number" && !Number.isInteger(value)) return "Value must be an integer"`,
 		);
 	}
 
 	// Float validation (ensure it's a finite number)
 	if (constraints.isFloat) {
 		checks.push(
-			`if (typeof value === "number" && !Number.isFinite(value)) throw new Error("Value must be a finite number")`,
+			`if (typeof value === "number" && !Number.isFinite(value)) return "Value must be a finite number"`,
 		);
 	}
 
@@ -228,7 +230,7 @@ function buildValidationFunction(
 	if (constraints.pattern) {
 		const escapedPattern = constraints.pattern.replace(/\\/g, "\\\\");
 		checks.push(
-			`if (typeof value === "string" && !new RegExp("${escapedPattern}").test(value)) throw new Error("Value must match pattern ${escapedPattern}")`,
+			`if (typeof value === "string" && !new RegExp("${escapedPattern}").test(value)) return "Value must match pattern ${escapedPattern}"`,
 		);
 	}
 
@@ -237,43 +239,45 @@ function buildValidationFunction(
 		switch (constraints.dateTimeType) {
 			case "utcDateTime":
 				checks.push(
-					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) throw new Error("Value must be a valid UTC date-time string"); }`,
+					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) return "Value must be a valid UTC date-time string"; }`,
 				);
 				break;
 			case "offsetDateTime":
 				checks.push(
-					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) throw new Error("Value must be a valid offset date-time string"); }`,
+					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) return "Value must be a valid offset date-time string"; }`,
 				);
 				break;
 			case "plainDate":
 				checks.push(
-					`if (typeof value === "string" && !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) throw new Error("Value must be a valid date (YYYY-MM-DD)")`,
+					`if (typeof value === "string" && !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return "Value must be a valid date (YYYY-MM-DD)"`,
 				);
 				break;
 			case "plainTime":
 				checks.push(
-					`if (typeof value === "string" && !/^\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?$/.test(value)) throw new Error("Value must be a valid time (HH:MM:SS)")`,
+					`if (typeof value === "string" && !/^\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?$/.test(value)) return "Value must be a valid time (HH:MM:SS)"`,
 				);
 				break;
 		}
 	}
 
-	// Enum validation
-	if (constraints.enumValues && constraints.enumValues.length > 0) {
-		const allowedValues = JSON.stringify(constraints.enumValues);
-		checks.push(
-			`if (!${allowedValues}.includes(value)) throw new Error("Value must be one of: ${constraints.enumValues.join(", ")}")`,
-		);
-	}
+	// Note: Enum validation is handled natively by ElectroDB when type is defined as an array
+	// e.g., type: ["LOW", "MEDIUM", "HIGH"], so no custom validation needed for enums
 
 	if (checks.length === 0) {
 		return undefined;
 	}
 
-	// Create the validation function as a string to be serialized
-	const functionBody = checks.join("; ");
+	// Create the validation function
+	// ElectroDB expects: return true for valid, throw Error for invalid
+	// This preserves custom error messages in the thrown error
+	const throwingChecks = checks.map((check) =>
+		check.replace(/return "([^"]+)"/, 'throw new Error("$1")'),
+	);
+	const functionBody = throwingChecks.join("; ");
 	// biome-ignore lint/security/noGlobalEval: This is safe since we control the input
-	return eval(`(value) => { ${functionBody} }`);
+	return eval(`(value) => { ${functionBody}; return true; }`) as (
+		value: unknown,
+	) => boolean;
 }
 
 function emitIntrinsincScalar(type: Scalar) {
@@ -700,18 +704,34 @@ export async function $onEmit(context: EmitContext) {
 	const hasCustomAttributeType = entityDefinitions.includes(
 		"CustomAttributeType",
 	);
-	const imports = hasCustomAttributeType
-		? 'import { CustomAttributeType } from "electrodb";\n\n'
-		: "";
+
+	// Build imports section
+	const electrodbImports: string[] = [];
+	if (hasCustomAttributeType) {
+		electrodbImports.push("CustomAttributeType");
+	}
+
+	const imports =
+		electrodbImports.length > 0
+			? `import { ${electrodbImports.join(", ")} } from "electrodb";\n\n`
+			: "";
 
 	const typescriptSource = imports + entityDefinitions;
 
 	const declarations = await ts.transpileDeclaration(typescriptSource, {});
 	const javascript = await ts.transpileModule(typescriptSource, {});
 
+	// Fix validate function types in declarations
+	// TypeScript infers literal return types, but ElectroDB expects (value: T) => boolean
+	// Match: readonly validate: (value: any) => <anything until the closing semicolon and newline>
+	const fixedDeclarations = declarations.outputText.replace(
+		/readonly validate: \(value: any\) => .+?;\n/g,
+		"readonly validate: (value: unknown) => boolean;\n",
+	);
+
 	await emitFile(context.program, {
 		path: resolvePath(context.emitterOutputDir, "index.d.ts"),
-		content: declarations.outputText,
+		content: fixedDeclarations,
 	});
 
 	await emitFile(context.program, {
