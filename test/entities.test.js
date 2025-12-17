@@ -14,21 +14,20 @@ suite("Job Entity", () => {
 	test("Job entity has all required attributes", () => {
 		const attrs = Job.attributes;
 
-		assert.deepEqual(attrs.pk, {
-			type: "string",
-			required: true,
-		});
+		// UUID scalar has @minLength(25) @maxLength(25), so it gets validation
+		assert.equal(attrs.pk.type, "string");
+		assert.equal(attrs.pk.required, true);
+		assert.equal(typeof attrs.pk.validate, "function");
 
-		assert.deepEqual(attrs.jobId, {
-			type: "string",
-			required: true,
-		});
+		assert.equal(attrs.jobId.type, "string");
+		assert.equal(attrs.jobId.required, true);
+		assert.equal(typeof attrs.jobId.validate, "function");
 
-		assert.deepEqual(attrs.personId, {
-			type: "string",
-			required: true,
-		});
+		assert.equal(attrs.personId.type, "string");
+		assert.equal(attrs.personId.required, true);
+		assert.equal(typeof attrs.personId.validate, "function");
 
+		// description is plain string without constraints
 		assert.deepEqual(attrs.description, {
 			type: "string",
 			required: true,
@@ -73,22 +72,22 @@ suite("Task Entity - Default Values", () => {
 	});
 
 	suite("Enum default values", () => {
-		test("priority has enum default value", () => {
-			assert.deepEqual(Task.attributes.priority, {
-				type: ["LOW", "MEDIUM", "HIGH"],
-				required: true,
-				default: "MEDIUM",
-			});
+		test("priority has enum default value with validation", () => {
+			// Enums get validation to ensure value is in allowed set
+			assert.deepEqual(Task.attributes.priority.type, ["LOW", "MEDIUM", "HIGH"]);
+			assert.equal(Task.attributes.priority.required, true);
+			assert.equal(Task.attributes.priority.default, "MEDIUM");
+			assert.equal(typeof Task.attributes.priority.validate, "function");
 		});
 	});
 
 	suite("Number default values", () => {
-		test("count has number default value", () => {
-			assert.deepEqual(Task.attributes.count, {
-				type: "number",
-				required: true,
-				default: 0,
-			});
+		test("count has number default value with integer validation", () => {
+			// int32 types get integer validation
+			assert.equal(Task.attributes.count.type, "number");
+			assert.equal(Task.attributes.count.required, true);
+			assert.equal(Task.attributes.count.default, 0);
+			assert.equal(typeof Task.attributes.count.validate, "function");
 		});
 	});
 
@@ -133,6 +132,132 @@ suite("Task Entity - Default Values", () => {
 	});
 });
 
+suite("Validation Functions", () => {
+	suite("String length validation (UUID - @minLength(25) @maxLength(25))", () => {
+		test("accepts strings of exactly 25 characters", () => {
+			const validate = Job.attributes.pk.validate;
+			// Should not throw for valid length
+			assert.doesNotThrow(() => validate("1234567890123456789012345"));
+		});
+
+		test("rejects strings shorter than 25 characters", () => {
+			const validate = Job.attributes.pk.validate;
+			assert.throws(
+				() => validate("too-short"),
+				/Value must be at least 25 characters/
+			);
+		});
+
+		test("rejects strings longer than 25 characters", () => {
+			const validate = Job.attributes.pk.validate;
+			assert.throws(
+				() => validate("this-string-is-way-too-long-for-uuid"),
+				/Value must be at most 25 characters/
+			);
+		});
+	});
+
+	suite("String maxLength validation (String64 - @maxLength(64))", () => {
+		test("accepts strings up to 64 characters", () => {
+			const validate = Person.attributes.firstName.validate;
+			assert.doesNotThrow(() => validate("John"));
+			assert.doesNotThrow(() => validate("A".repeat(64)));
+		});
+
+		test("rejects strings longer than 64 characters", () => {
+			const validate = Person.attributes.firstName.validate;
+			assert.throws(
+				() => validate("A".repeat(65)),
+				/Value must be at most 64 characters/
+			);
+		});
+	});
+
+	suite("Integer validation (int16, int32)", () => {
+		test("accepts integer values", () => {
+			const validate = Person.attributes.age.validate;
+			assert.doesNotThrow(() => validate(25));
+			assert.doesNotThrow(() => validate(0));
+			assert.doesNotThrow(() => validate(-10));
+		});
+
+		test("rejects non-integer values", () => {
+			const validate = Person.attributes.age.validate;
+			assert.throws(
+				() => validate(25.5),
+				/Value must be an integer/
+			);
+			assert.throws(
+				() => validate(3.14159),
+				/Value must be an integer/
+			);
+		});
+	});
+
+	suite("DateTime validation (utcDateTime)", () => {
+		test("accepts valid ISO date strings", () => {
+			const validate = Person.attributes.birthDate.validate;
+			assert.doesNotThrow(() => validate("2023-01-15T10:30:00Z"));
+			assert.doesNotThrow(() => validate("2023-01-15"));
+			assert.doesNotThrow(() => validate("2023-01-15T10:30:00.000Z"));
+		});
+
+		test("rejects invalid date strings", () => {
+			const validate = Person.attributes.birthDate.validate;
+			assert.throws(
+				() => validate("not-a-date"),
+				/Value must be a valid UTC date-time string/
+			);
+			assert.throws(
+				() => validate("invalid"),
+				/Value must be a valid UTC date-time string/
+			);
+		});
+	});
+
+	suite("Enum validation (Priority enum)", () => {
+		test("accepts valid enum values", () => {
+			const validate = Task.attributes.priority.validate;
+			assert.doesNotThrow(() => validate("LOW"));
+			assert.doesNotThrow(() => validate("MEDIUM"));
+			assert.doesNotThrow(() => validate("HIGH"));
+		});
+
+		test("rejects invalid enum values", () => {
+			const validate = Task.attributes.priority.validate;
+			assert.throws(
+				() => validate("INVALID"),
+				/Value must be one of: LOW, MEDIUM, HIGH/
+			);
+			assert.throws(
+				() => validate("low"),
+				/Value must be one of: LOW, MEDIUM, HIGH/
+			);
+		});
+	});
+
+	suite("Enum validation with custom values (PersonStatus)", () => {
+		test("accepts valid enum values", () => {
+			const validate = Person.attributes.status.validate;
+			assert.doesNotThrow(() => validate("01"));
+			assert.doesNotThrow(() => validate("02"));
+			assert.doesNotThrow(() => validate("03"));
+		});
+
+		test("rejects invalid enum values", () => {
+			const validate = Person.attributes.status.validate;
+			assert.throws(
+				() => validate("ACTIVE"),
+				/Value must be one of: 01, 02, 03/
+			);
+			assert.throws(
+				() => validate("1"),
+				/Value must be one of: 01, 02, 03/
+			);
+		});
+	});
+});
+
 suite("Person Entity", () => {
 	test("Person entity has correct model configuration", () => {
 		assert.deepEqual(Person.model, {
@@ -143,40 +268,42 @@ suite("Person Entity", () => {
 	});
 
 	suite("Basic Attributes", () => {
-		test("pk attribute is string and required", () => {
-			assert.deepEqual(Person.attributes.pk, {
-				type: "string",
-				required: true,
-			});
+		test("pk attribute is string and required with validation", () => {
+			// UUID scalar has @minLength(25) @maxLength(25)
+			assert.equal(Person.attributes.pk.type, "string");
+			assert.equal(Person.attributes.pk.required, true);
+			assert.equal(typeof Person.attributes.pk.validate, "function");
 		});
 
-		test("personId attribute is string and required", () => {
-			assert.deepEqual(Person.attributes.personId, {
-				type: "string",
-				required: true,
-			});
+		test("personId attribute is string and required with validation", () => {
+			// UUID scalar has @minLength(25) @maxLength(25)
+			assert.equal(Person.attributes.personId.type, "string");
+			assert.equal(Person.attributes.personId.required, true);
+			assert.equal(typeof Person.attributes.personId.validate, "function");
 		});
 
-		test("birthDate (utcDateTime) is mapped to string type", () => {
-			assert.deepEqual(Person.attributes.birthDate, {
-				type: "string",
-				required: true,
-			});
+		test("birthDate (utcDateTime) is mapped to string type with datetime validation", () => {
+			assert.equal(Person.attributes.birthDate.type, "string");
+			assert.equal(Person.attributes.birthDate.required, true);
+			// utcDateTime types get datetime validation
+			assert.equal(typeof Person.attributes.birthDate.validate, "function");
 		});
 
-		test("age (int16) is mapped to number type", () => {
-			assert.deepEqual(Person.attributes.age, {
-				type: "number",
-				required: true,
-			});
+		test("age (int16) is mapped to number type with integer validation", () => {
+			assert.equal(Person.attributes.age.type, "number");
+			assert.equal(Person.attributes.age.required, true);
+			// int16 types get integer validation
+			assert.equal(typeof Person.attributes.age.validate, "function");
 		});
 	});
 
 	suite("@label decorator", () => {
 		test("firstName has label 'fn'", () => {
+			// String64 has @maxLength(64) so it gets validation
 			assert.equal(Person.attributes.firstName.label, "fn");
 			assert.equal(Person.attributes.firstName.type, "string");
 			assert.equal(Person.attributes.firstName.required, true);
+			assert.equal(typeof Person.attributes.firstName.validate, "function");
 		});
 	});
 
