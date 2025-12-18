@@ -148,7 +148,7 @@ suite("Validation Functions", () => {
 				// Throws Error for invalid values
 				assert.throws(
 					() => validate("too-short"),
-					/Value must be at least 25 characters/,
+					/'pk' must be at least 25 characters/,
 				);
 			});
 
@@ -157,7 +157,7 @@ suite("Validation Functions", () => {
 				// Throws Error for invalid values
 				assert.throws(
 					() => validate("this-string-is-way-too-long-for-uuid"),
-					/Value must be at most 25 characters/,
+					/'pk' must be at most 25 characters/,
 				);
 			});
 		},
@@ -174,7 +174,7 @@ suite("Validation Functions", () => {
 			const validate = Person.attributes.firstName.validate;
 			assert.throws(
 				() => validate("A".repeat(65)),
-				/Value must be at most 64 characters/,
+				/'firstName' must be at most 64 characters/,
 			);
 		});
 	});
@@ -189,8 +189,8 @@ suite("Validation Functions", () => {
 
 		test("rejects non-integer values", () => {
 			const validate = Person.attributes.age.validate;
-			assert.throws(() => validate(25.5), /Value must be an integer/);
-			assert.throws(() => validate(Math.PI), /Value must be an integer/);
+			assert.throws(() => validate(25.5), /'age' must be an integer/);
+			assert.throws(() => validate(Math.PI), /'age' must be an integer/);
 		});
 	});
 
@@ -206,11 +206,11 @@ suite("Validation Functions", () => {
 			const validate = Person.attributes.birthDate.validate;
 			assert.throws(
 				() => validate("not-a-date"),
-				/Value must be a valid UTC date-time string/,
+				/'birthDate' must be a valid UTC date-time string/,
 			);
 			assert.throws(
 				() => validate("invalid"),
-				/Value must be a valid UTC date-time string/,
+				/'birthDate' must be a valid UTC date-time string/,
 			);
 		});
 	});
