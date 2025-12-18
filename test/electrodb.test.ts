@@ -72,7 +72,7 @@ suite("ElectroDB Runtime Validation", () => {
 						title: "Test Task",
 						settings: [],
 					}).params(),
-				/Value must be at least 25 characters/,
+				/'pk' must be at least 25 characters/,
 			);
 		});
 
@@ -85,7 +85,7 @@ suite("ElectroDB Runtime Validation", () => {
 						title: "Test Task",
 						settings: [],
 					}).params(),
-				/Value must be at most 25 characters/,
+				/'pk' must be at most 25 characters/,
 			);
 		});
 
@@ -154,7 +154,7 @@ suite("ElectroDB Runtime Validation", () => {
 						count: 3.14,
 						settings: [],
 					}).params(),
-				/Value must be an integer/,
+				/'count' must be an integer/,
 			);
 		});
 

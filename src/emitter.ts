@@ -185,44 +185,45 @@ interface ValidationConstraints {
  */
 function buildValidationFunction(
 	constraints: ValidationConstraints,
+	propertyName: string,
 ): ((value: unknown) => boolean) | undefined {
 	const checks: string[] = [];
 
 	// String length validation
 	if (constraints.minLength !== undefined) {
 		checks.push(
-			`if (typeof value === "string" && value.length < ${constraints.minLength}) return "Value must be at least ${constraints.minLength} characters"`,
+			`if (typeof value === "string" && value.length < ${constraints.minLength}) return "'${propertyName}' must be at least ${constraints.minLength} characters"`,
 		);
 	}
 	if (constraints.maxLength !== undefined) {
 		checks.push(
-			`if (typeof value === "string" && value.length > ${constraints.maxLength}) return "Value must be at most ${constraints.maxLength} characters"`,
+			`if (typeof value === "string" && value.length > ${constraints.maxLength}) return "'${propertyName}' must be at most ${constraints.maxLength} characters"`,
 		);
 	}
 
 	// Numeric validation
 	if (constraints.minValue !== undefined) {
 		checks.push(
-			`if (typeof value === "number" && value < ${constraints.minValue}) return "Value must be at least ${constraints.minValue}"`,
+			`if (typeof value === "number" && value < ${constraints.minValue}) return "'${propertyName}' must be at least ${constraints.minValue}"`,
 		);
 	}
 	if (constraints.maxValue !== undefined) {
 		checks.push(
-			`if (typeof value === "number" && value > ${constraints.maxValue}) return "Value must be at most ${constraints.maxValue}"`,
+			`if (typeof value === "number" && value > ${constraints.maxValue}) return "'${propertyName}' must be at most ${constraints.maxValue}"`,
 		);
 	}
 
 	// Integer validation
 	if (constraints.isInteger) {
 		checks.push(
-			`if (typeof value === "number" && !Number.isInteger(value)) return "Value must be an integer"`,
+			`if (typeof value === "number" && !Number.isInteger(value)) return "'${propertyName}' must be an integer"`,
 		);
 	}
 
 	// Float validation (ensure it's a finite number)
 	if (constraints.isFloat) {
 		checks.push(
-			`if (typeof value === "number" && !Number.isFinite(value)) return "Value must be a finite number"`,
+			`if (typeof value === "number" && !Number.isFinite(value)) return "'${propertyName}' must be a finite number"`,
 		);
 	}
 
@@ -230,7 +231,7 @@ function buildValidationFunction(
 	if (constraints.pattern) {
 		const escapedPattern = constraints.pattern.replace(/\\/g, "\\\\");
 		checks.push(
-			`if (typeof value === "string" && !new RegExp("${escapedPattern}").test(value)) return "Value must match pattern ${escapedPattern}"`,
+			`if (typeof value === "string" && !new RegExp("${escapedPattern}").test(value)) return "'${propertyName}' must match pattern ${escapedPattern}"`,
 		);
 	}
 
@@ -239,22 +240,22 @@ function buildValidationFunction(
 		switch (constraints.dateTimeType) {
 			case "utcDateTime":
 				checks.push(
-					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) return "Value must be a valid UTC date-time string"; }`,
+					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) return "'${propertyName}' must be a valid UTC date-time string"; }`,
 				);
 				break;
 			case "offsetDateTime":
 				checks.push(
-					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) return "Value must be a valid offset date-time string"; }`,
+					`if (typeof value === "string") { const d = new Date(value); if (isNaN(d.getTime())) return "'${propertyName}' must be a valid offset date-time string"; }`,
 				);
 				break;
 			case "plainDate":
 				checks.push(
-					`if (typeof value === "string" && !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return "Value must be a valid date (YYYY-MM-DD)"`,
+					`if (typeof value === "string" && !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return "'${propertyName}' must be a valid date (YYYY-MM-DD)"`,
 				);
 				break;
 			case "plainTime":
 				checks.push(
-					`if (typeof value === "string" && !/^\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?$/.test(value)) return "Value must be a valid time (HH:MM:SS)"`,
+					`if (typeof value === "string" && !/^\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?$/.test(value)) return "'${propertyName}' must be a valid time (HH:MM:SS)"`,
 				);
 				break;
 		}
@@ -642,7 +643,7 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 
 	// Add validation if constraints are present
 	const constraints = getValidationConstraints(ctx, prop);
-	const validateFn = buildValidationFunction(constraints);
+	const validateFn = buildValidationFunction(constraints, prop.name);
 	if (validateFn) {
 		// @ts-expect-error - validate is a valid ElectroDB attribute property
 		attr.validate = validateFn;
