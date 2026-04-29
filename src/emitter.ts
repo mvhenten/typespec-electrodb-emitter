@@ -779,9 +779,14 @@ export async function $onEmit(context: EmitContext) {
 				types: "./index.d.ts",
 				exports: {
 					".": {
-						types: "./index.d.ts",
-						import: "./index.mjs",
-						require: "./index.cjs",
+						import: {
+							types: "./index.d.mts",
+							default: "./index.mjs",
+						},
+						require: {
+							types: "./index.d.cts",
+							default: "./index.cjs",
+						},
 					},
 				},
 			},
