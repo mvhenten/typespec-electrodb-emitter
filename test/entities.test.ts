@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
-import { Job, Person, Task } from "../build/entities/index.js";
+import { Job, Person, Task } from "../build/entities/index.mjs";
 
 suite("Job Entity", () => {
 	test("Job entity has correct model configuration", () => {
