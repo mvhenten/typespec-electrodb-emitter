@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
 import { Entity, Service } from "electrodb";
-import { Job, Person, Task } from "../build/entities/index.js";
+import { Job, Person, Task } from "../build/entities/index.mjs";
 
 const table = "test-table";
 

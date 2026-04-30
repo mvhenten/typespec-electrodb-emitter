@@ -720,7 +720,18 @@ export async function $onEmit(context: EmitContext) {
 	const typescriptSource = imports + entityDefinitions;
 
 	const declarations = await ts.transpileDeclaration(typescriptSource, {});
-	const javascript = await ts.transpileModule(typescriptSource, {});
+	const esm = ts.transpileModule(typescriptSource, {
+		compilerOptions: {
+			module: ts.ModuleKind.ESNext,
+			target: ts.ScriptTarget.ES2022,
+		},
+	});
+	const cjs = ts.transpileModule(typescriptSource, {
+		compilerOptions: {
+			module: ts.ModuleKind.CommonJS,
+			target: ts.ScriptTarget.ES2022,
+		},
+	});
 
 	// Fix validate function types in declarations
 	// TypeScript infers literal return types, but ElectroDB expects (value: T) => boolean
@@ -736,8 +747,23 @@ export async function $onEmit(context: EmitContext) {
 	});
 
 	await emitFile(context.program, {
-		path: resolvePath(context.emitterOutputDir, "index.js"),
-		content: javascript.outputText,
+		path: resolvePath(context.emitterOutputDir, "index.d.mts"),
+		content: fixedDeclarations,
+	});
+
+	await emitFile(context.program, {
+		path: resolvePath(context.emitterOutputDir, "index.d.cts"),
+		content: fixedDeclarations,
+	});
+
+	await emitFile(context.program, {
+		path: resolvePath(context.emitterOutputDir, "index.mjs"),
+		content: esm.outputText,
+	});
+
+	await emitFile(context.program, {
+		path: resolvePath(context.emitterOutputDir, "index.cjs"),
+		content: cjs.outputText,
 	});
 
 	await emitFile(context.program, {
@@ -747,8 +773,22 @@ export async function $onEmit(context: EmitContext) {
 				name: packageName ?? "entities",
 				version: packageVersion ?? "1.0.0",
 				description: "ElectroDB entities",
-				main: "./index.js",
+				type: "module",
+				main: "./index.cjs",
+				module: "./index.mjs",
 				types: "./index.d.ts",
+				exports: {
+					".": {
+						import: {
+							types: "./index.d.mts",
+							default: "./index.mjs",
+						},
+						require: {
+							types: "./index.d.cts",
+							default: "./index.cjs",
+						},
+					},
+				},
 			},
 			null,
 			2,
