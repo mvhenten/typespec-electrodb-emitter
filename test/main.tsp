@@ -153,3 +153,17 @@ model Person {
 
     coffeePreferences: CoffeePreferences[];
 }
+
+@entity("document", "org")
+@index(
+    "documents",
+    {
+        pk: [Document.pk],
+    }
+)
+model Document {
+    pk: UUID;
+    payload: Record<unknown>;
+    typedPayload: Record<Contact>;
+    metadata: Address;
+}

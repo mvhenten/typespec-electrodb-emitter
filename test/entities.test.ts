@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { suite, test } from "node:test";
-import { Job, Person, Task } from "../build/entities/index.mjs";
+import { Document, Job, Person, Task } from "../build/entities/index.mjs";
 
 suite("Job Entity", () => {
 	test("Job entity has correct model configuration", () => {
@@ -489,6 +490,49 @@ suite("Person Entity", () => {
 			assert.equal(byAgeIndex.index, "lsi1");
 			// LSI has no collection
 			assert.equal("collection" in byAgeIndex, false);
+		});
+	});
+});
+
+suite("Open Record types (Record<T>)", () => {
+	// CustomAttributeType("any") evaluates to the string "any" at runtime,
+	// so an open attribute round-trips arbitrary keys instead of being a
+	// closed map ({ type: "map", properties: {} }) that strips all keys.
+	test("Record<unknown> emits an open 'any' attribute, not a closed map", () => {
+		assert.deepEqual(Document.attributes.payload, {
+			type: "any",
+			required: true,
+		});
+	});
+
+	test("Record<NamedModel> emits an open 'any' attribute", () => {
+		assert.deepEqual(Document.attributes.typedPayload, {
+			type: "any",
+			required: true,
+		});
+	});
+
+	test("generated output imports CustomAttributeType for open records", () => {
+		const source = readFileSync(
+			new URL("../build/entities/index.mjs", import.meta.url),
+			"utf8",
+		);
+		assert.match(
+			source,
+			/import \{[^}]*CustomAttributeType[^}]*\} from "electrodb"/,
+		);
+		assert.match(source, /payload: \{\s*type: CustomAttributeType\("any"\)/);
+	});
+
+	test("named model property still emits a closed map with its properties", () => {
+		assert.equal(Document.attributes.metadata.type, "map");
+		assert.deepEqual(Document.attributes.metadata.properties.street, {
+			type: "string",
+			required: true,
+		});
+		assert.deepEqual(Document.attributes.metadata.properties.country, {
+			type: ["NL", "US", "DE"],
+			required: true,
 		});
 	});
 });
