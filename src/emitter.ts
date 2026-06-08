@@ -352,10 +352,22 @@ function emitRecordModel(type: RecordModelType): Attribute {
 	};
 }
 
+function emitOpenRecordModel(type: RecordModelType): Attribute {
+	const valueTsType = emitTypeToTypeScript(type.indexer.value);
+	return {
+		// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
+		type: new RawCode(
+			`CustomAttributeType<Record<string, ${valueTsType}>>("any")`,
+		),
+	};
+}
+
 function emitModel(type: Model): Attribute {
 	switch (type.name) {
 		case "Array":
 			return emitArrayModel(type as ArrayModelType);
+		case "Record":
+			return emitOpenRecordModel(type as RecordModelType);
 	}
 	return emitRecordModel(type as RecordModelType);
 }
@@ -427,6 +439,8 @@ function emitTypeToTypeScript(type: Type): string {
 				.join(" | ");
 			return variants;
 		}
+		case "Intrinsic":
+			return type.name === "unknown" ? "unknown" : "any";
 		default:
 			return "any";
 	}
