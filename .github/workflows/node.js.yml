@@ -36,13 +36,16 @@ jobs:
       contents: write # to be able to publish a GitHub release
       issues: write # to be able to comment on released issues
       pull-requests: write # to be able to comment on released pull requests
-      # id-token: write # to enable use of OIDC for npm provenance
+      id-token: write # to enable use of OIDC for trusted publishing and npm provenance
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
+      - name: Upgrade npm
+        # Trusted publishing (OIDC) requires npm >= 11.5.1, newer than what Node LTS bundles
+        run: npm install -g npm@latest
       - name: Install dependencies
         run: npm ci
       # - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
@@ -50,5 +53,4 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
