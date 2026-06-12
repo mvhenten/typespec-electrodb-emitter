@@ -22,14 +22,20 @@ interface AccessPattern {
 	};
 }
 
+// Visibility templates (Create<T> / Update<T>, @typespec/compiler >= 1.13)
+// re-apply decorators to mutated clones of the model. The access pattern's
+// property references still point at the original model, so a mismatch means
+// "this is a clone, not an entity" — signal the caller to skip it.
 const extractFieldNames = (target: Model, prop: Tuple) => {
 	const values: string[] = [];
 
 	for (const value of (prop as Tuple).values) {
 		assert(
-			value.kind === "ModelProperty" && value.model === target,
+			value.kind === "ModelProperty",
 			"Access patterns must use properties from the model",
 		);
+
+		if (value.model !== target) return undefined;
 
 		values.push(value.name);
 	}
@@ -70,21 +76,26 @@ const normalizeKey = (
 		keyName === "pk" && isLocalSecondaryIndex(index) ? "" : index;
 
 	if (key && key.kind === "Tuple") {
+		const composite = extractFieldNames(target, key);
+		if (composite === undefined) return undefined;
+
 		return {
 			field: `${fieldPrefix}${keyName}`,
-			composite: extractFieldNames(target, key),
+			composite,
 		};
 	}
 
 	if (key && key.kind === "Model") {
 		const composite = getProperty(key, "composite");
+		const fields =
+			composite && composite.kind === "Tuple"
+				? extractFieldNames(target, composite)
+				: [];
+		if (fields === undefined) return undefined;
 
 		return {
 			field: getStringValue(key, "field"),
-			composite:
-				composite && composite.kind === "Tuple"
-					? extractFieldNames(target, composite)
-					: [],
+			composite: fields,
 		};
 	}
 
@@ -101,9 +112,14 @@ export function $index(
 	pattern: Model,
 ) {
 	const name = patternName.value;
+	const pk = normalizeKey("pk", { target, pattern });
+	const sk = normalizeKey("sk", { target, pattern });
+
+	if (pk === undefined || sk === undefined) return;
+
 	const accesPattern: AccessPattern = {
-		pk: normalizeKey("pk", { target, pattern }),
-		sk: normalizeKey("sk", { target, pattern }),
+		pk,
+		sk,
 	};
 
 	for (const key of ["index", "collection", "type", "scope"] as const) {
