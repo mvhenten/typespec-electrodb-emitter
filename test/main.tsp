@@ -167,3 +167,11 @@ model Document {
     typedPayload: Record<Contact>;
     metadata: Address;
 }
+
+// Regression for visibility-mutated clones (@typespec/compiler >= 1.13):
+// Create<T> re-applies @entity/@index to a mutated clone whose properties
+// differ from the originals referenced in the access patterns. The decorator
+// must skip the clone instead of crashing.
+model PersonCreateParams {
+    ...Create<Person>;
+}
