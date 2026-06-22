@@ -2,6 +2,7 @@ import assert from "node:assert";
 import type {
 	ArrayModelType,
 	Enum,
+	EnumMember,
 	Model,
 	ModelProperty,
 	RecordModelType,
@@ -382,6 +383,26 @@ function emitEnumModel(type: Enum): Attribute {
 	};
 }
 
+/**
+ * Emits a single enum member as a single-value enum.
+ *
+ * This handles generic instantiations such as `RefDataLink<RefDataKind.Currency>`,
+ * where a property typed `refDataKind: Kind` resolves to an EnumMember rather than
+ * the parent Enum. Emitting a one-element value list pins the attribute to the single
+ * valid value while preserving the generic's per-kind narrowing.
+ *
+ * The effective value is derived as `value ?? name`, matching @typespec/openapi3's
+ * `enumMemberReference` (and `emitEnumModel` below). Numeric member values are
+ * stringified to keep the array of string values that ElectroDB enums expect — this
+ * matches the rest of this emitter (`emitEnumModel`, `emitArrayModel`) rather than
+ * openapi3, which preserves the numeric type.
+ */
+function emitEnumMember(type: EnumMember): Attribute {
+	return {
+		type: [`${type.value ?? type.name}`],
+	};
+}
+
 function emitTypeToTypeScript(type: Type): string {
 	switch (type.kind) {
 		case "Scalar": {
@@ -433,6 +454,8 @@ function emitTypeToTypeScript(type: Type): string {
 				.join(" | ");
 			return values;
 		}
+		case "EnumMember":
+			return `"${type.value ?? type.name}"`;
 		case "Union": {
 			const variants = Array.from(type.variants.values())
 				.map((variant) => emitTypeToTypeScript(variant.type))
@@ -491,6 +514,8 @@ function emitType(type: Type): Attribute {
 			return emitModel(type);
 		case "Enum":
 			return emitEnumModel(type);
+		case "EnumMember":
+			return emitEnumMember(type);
 		case "Union":
 			return emitUnion(type);
 		default:

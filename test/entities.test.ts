@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { suite, test } from "node:test";
-import { Document, Job, Person, Task } from "../build/entities/index.mjs";
+import {
+	CreditLimit,
+	Document,
+	Job,
+	Person,
+	Task,
+} from "../build/entities/index.mjs";
 
 suite("Job Entity", () => {
 	test("Job entity has correct model configuration", () => {
@@ -534,5 +540,73 @@ suite("Open Record types (Record<T>)", () => {
 			type: ["NL", "US", "DE"],
 			required: true,
 		});
+	});
+});
+
+suite("Enum member types (RefDataLink<Kind>)", () => {
+	// A generic model property typed to its type parameter (refDataKind: Kind)
+	// resolves to an EnumMember when instantiated as RefDataLink<RefDataKind.Currency>.
+	// It must emit as a single-value enum, not crash on an unsupported type kind.
+	test("currency is a closed map with code and refDataKind", () => {
+		assert.equal(CreditLimit.attributes.currency.type, "map");
+		assert.equal(CreditLimit.attributes.currency.required, true);
+	});
+
+	test("refDataKind enum-member emits as a single-value enum", () => {
+		assert.deepEqual(CreditLimit.attributes.currency.properties.refDataKind, {
+			type: ["Currency"],
+			required: true,
+		});
+	});
+
+	test("code property remains a plain string", () => {
+		assert.deepEqual(CreditLimit.attributes.currency.properties.code, {
+			type: "string",
+			required: true,
+		});
+	});
+
+	test("direct (non-generic) enum-member typing emits a single-value enum", () => {
+		assert.deepEqual(CreditLimit.attributes.directKind, {
+			type: ["Unit"],
+			required: true,
+		});
+	});
+
+	test("string-valued enum member emits the value, not the name", () => {
+		assert.deepEqual(CreditLimit.attributes.settlementCurrency, {
+			type: ["eur"],
+			required: true,
+		});
+	});
+
+	test("numeric-valued enum member is stringified", () => {
+		assert.deepEqual(CreditLimit.attributes.cutoffDay, {
+			type: ["1"],
+			required: true,
+		});
+	});
+
+	test("Record<EnumMember> emits an open 'any' attribute", () => {
+		assert.deepEqual(CreditLimit.attributes.kindLookup, {
+			type: "any",
+			required: true,
+		});
+	});
+
+	test("Record<EnumMember> routes through emitTypeToTypeScript without crashing", () => {
+		const source = readFileSync(
+			new URL("../build/entities/index.mjs", import.meta.url),
+			"utf8",
+		);
+		// An EnumMember Record value type flows through emitTypeToTypeScript's
+		// EnumMember case. The TS literal it produces is the generic argument of
+		// CustomAttributeType, which transpilation erases, so we assert the
+		// CustomAttributeType call was emitted (i.e. the path did not fall through
+		// to the unsupported-type default).
+		assert.match(
+			source,
+			/kindLookup:\s*\{\s*type:\s*CustomAttributeType\("any"\)/,
+		);
 	});
 });
