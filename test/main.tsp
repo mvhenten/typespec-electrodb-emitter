@@ -168,6 +168,61 @@ model Document {
     metadata: Address;
 }
 
+// Regression for enum-member-typed properties (e.g. RefDataLink<Kind>):
+// A generic model whose property is typed to the type parameter resolves to an
+// EnumMember (not the parent Enum) when instantiated. The emitter must emit it
+// as a single-value enum instead of crashing on the unsupported type kind.
+enum RefDataKind {
+    Country,
+    Currency,
+    Unit,
+}
+
+model RefDataLink<Kind extends RefDataKind> {
+    code: string;
+    refDataKind: Kind;
+}
+
+// String-valued enum: members carry an explicit value distinct from their name,
+// so an enum-member type must emit the value ("eur"), not the name ("Euro").
+enum CurrencyCode {
+    Euro: "eur",
+    Dollar: "usd",
+}
+
+// Numeric-valued enum: pins the (intentional) stringification of numeric member
+// values — a member typed as DayOfWeek.Monday must emit ["1"], not [1].
+enum DayOfWeek {
+    Monday: 1,
+    Tuesday: 2,
+}
+
+@entity("creditLimit", "org")
+@index(
+    "creditLimits",
+    {
+        pk: [CreditLimit.pk],
+    }
+)
+model CreditLimit {
+    pk: UUID;
+
+    // Generic instantiation → EnumMember (the originally reported crash).
+    currency: RefDataLink<RefDataKind.Currency>;
+
+    // Direct (non-generic) enum-member typing → also an EnumMember.
+    directKind: RefDataKind.Unit;
+
+    // Enum member with an explicit string value → emits the value.
+    settlementCurrency: CurrencyCode.Euro;
+
+    // Enum member with a numeric value → stringified.
+    cutoffDay: DayOfWeek.Monday;
+
+    // EnumMember reaching emitTypeToTypeScript via an open Record value type.
+    kindLookup: Record<RefDataKind.Country>;
+}
+
 // Regression for visibility-mutated clones (@typespec/compiler >= 1.13):
 // Create<T> re-applies @entity/@index to a mutated clone whose properties
 // differ from the originals referenced in the access patterns. The decorator
