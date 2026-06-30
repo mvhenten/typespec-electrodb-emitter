@@ -154,6 +154,8 @@ model Person {
     coffeePreferences: CoffeePreferences[];
 }
 
+model JsonSchemaObject is Record<unknown>;
+
 @entity("document", "org")
 @index(
     "documents",
@@ -165,6 +167,7 @@ model Document {
     pk: UUID;
     payload: Record<unknown>;
     typedPayload: Record<Contact>;
+    namedPayload: JsonSchemaObject;
     metadata: Address;
 }
 

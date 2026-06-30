@@ -530,6 +530,13 @@ suite("Open Record types (Record<T>)", () => {
 		assert.match(source, /payload: \{\s*type: CustomAttributeType\("any"\)/);
 	});
 
+	test("named open-record model emits an open 'any' attribute, not a stripping map", () => {
+		assert.deepEqual(Document.attributes.namedPayload, {
+			type: "any",
+			required: true,
+		});
+	});
+
 	test("named model property still emits a closed map with its properties", () => {
 		assert.equal(Document.attributes.metadata.type, "map");
 		assert.deepEqual(Document.attributes.metadata.properties.street, {
