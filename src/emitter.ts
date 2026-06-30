@@ -362,12 +362,22 @@ function emitOpenRecordModel(type: RecordModelType): Attribute {
 	};
 }
 
+function isOpenRecordModel(type: Model): boolean {
+	return (
+		type.indexer?.key?.name === "string" &&
+		[...walkPropertiesInherited(type)].length === 0
+	);
+}
+
 function emitModel(type: Model): Attribute {
 	switch (type.name) {
 		case "Array":
 			return emitArrayModel(type as ArrayModelType);
 		case "Record":
 			return emitOpenRecordModel(type as RecordModelType);
+	}
+	if (isOpenRecordModel(type)) {
+		return emitOpenRecordModel(type as RecordModelType);
 	}
 	return emitRecordModel(type as RecordModelType);
 }
