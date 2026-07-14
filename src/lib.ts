@@ -23,7 +23,17 @@ const EmitterOptionsSchema: JSONSchemaType<EmitterOptions> = {
 
 export const $lib = createTypeSpecLibrary({
 	name: "myLibrary",
-	diagnostics: {},
+	diagnostics: {
+		"semantic-version-invalid-type": {
+			severity: "error",
+			description:
+				"The @semanticVersion decorator requires a string type matching the semantic version pattern.",
+			messages: {
+				default:
+					"@semanticVersion can only be applied to a property typed as (or extending) a string matching the semantic version pattern, e.g. the `SemanticVersion` scalar exported by this library.",
+			},
+		},
+	},
 	state: {
 		electroEntity: { description: "State for the @electroEntity decorator" },
 		label: { description: "State for the @label decorator" },
@@ -31,6 +41,9 @@ export const $lib = createTypeSpecLibrary({
 		updatedAt: { description: "State for the @updatedAt decorator" },
 		partitionKey: { description: "State for the @partitionKey decorator" },
 		index: { description: "State for the @index decorator" },
+		semanticVersion: {
+			description: "State for the @semanticVersion decorator",
+		},
 	},
 	emitter: {
 		options: EmitterOptionsSchema,

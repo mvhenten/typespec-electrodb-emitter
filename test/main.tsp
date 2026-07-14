@@ -234,6 +234,28 @@ model PersonCreateParams {
     ...Create<Person>;
 }
 
+// @semanticVersion on a sort key: DynamoDB compares sort keys
+// byte-lexicographically, so a plain semver string sorts wrong past
+// single-digit segments ("1.10.0" < "1.9.0"). Zero-padding each segment on
+// write makes a native `ScanIndexForward:false, Limit:1` query answer
+// "give me the latest version" directly, with no marker entity to maintain.
+@entity("productRelease", "catalog")
+@index(
+    "releases",
+    {
+        pk: [ProductRelease.productCode],
+        sk: [ProductRelease.version],
+    }
+)
+model ProductRelease {
+    productCode: string;
+
+    @semanticVersion
+    version: SemanticVersion;
+
+    releaseNotes?: string;
+}
+
 // Regression for issue #45: an enum array ("set" attribute) must accept an
 // empty array on write. DynamoDB rejects empty Sets, so the emitted attribute
 // needs a `set` transform that drops the attribute when the array is empty.
