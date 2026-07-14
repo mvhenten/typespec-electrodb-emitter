@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
 import { Entity, Service } from "electrodb";
-import { Job, Person, Task } from "../build/entities/index.mjs";
+import { Job, Person, Pet, Task } from "../build/entities/index.mjs";
 
 const table = "test-table";
 
@@ -192,5 +192,33 @@ suite("ElectroDB Service", () => {
 			pk: "1234567890123456789012345",
 		});
 		assert.equal(typeof query.go, "function");
+	});
+});
+
+suite("Pet Entity (set-typed attribute, issue #45)", () => {
+	test("put with an empty tags array does not throw and drops the tags key", () => {
+		const PetEntity = new Entity(Pet, { table });
+
+		const params = PetEntity.put({
+			petId: "1234567890123456789012345",
+			name: "Rex",
+			tags: [],
+		}).params();
+
+		assert.ok(params.Item);
+		assert.equal("tags" in params.Item, false);
+	});
+
+	test("put with a non-empty tags array keeps the tags key", () => {
+		const PetEntity = new Entity(Pet, { table });
+
+		const params = PetEntity.put({
+			petId: "1234567890123456789012345",
+			name: "Rex",
+			tags: ["01", "02"],
+		}).params();
+
+		assert.ok(params.Item);
+		assert.deepEqual([...params.Item.tags.values].sort(), ["01", "02"]);
 	});
 });

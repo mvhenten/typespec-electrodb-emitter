@@ -255,3 +255,25 @@ model ProductRelease {
 
     releaseNotes?: string;
 }
+
+// Regression for issue #45: an enum array ("set" attribute) must accept an
+// empty array on write. DynamoDB rejects empty Sets, so the emitted attribute
+// needs a `set` transform that drops the attribute when the array is empty.
+enum PetTag {
+    Friendly: "01",
+    Playful: "02",
+    Shy: "03",
+}
+
+@entity("pet", "petstore")
+@index(
+    "pets",
+    {
+        pk: [Pet.petId],
+    }
+)
+model Pet {
+    petId: UUID;
+    name: string;
+    tags: PetTag[];
+}
