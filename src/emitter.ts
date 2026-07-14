@@ -706,7 +706,7 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 			if (val === undefined) return val;
 			return val
 				.split(".")
-				.map((segment) => segment.padStart(5, "0"))
+				.map((segment) => segment.padStart(6, "0"))
 				.join(".");
 		};
 

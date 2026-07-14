@@ -264,6 +264,10 @@ await ProductReleaseEntity.query
 Applying `@semanticVersion` to a property whose type isn't (or doesn't
 extend) a string matching the semantic-version pattern is a compile-time
 error — it only ever touches genuine semver fields, not arbitrary strings.
+Each dot-separated segment is capped at 6 digits (0-999999), matching the
+zero-pad width the encoder uses; a scalar whose pattern allows a wider
+segment is rejected at compile time rather than silently mis-sorting once a
+segment overflows the pad.
 
 ## Documentation
 

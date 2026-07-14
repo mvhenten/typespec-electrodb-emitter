@@ -54,8 +54,12 @@ extern dec updatedAt(target: ModelProperty, label?: string);
  * sort keys byte-lexicographically, which sorts a semver string incorrectly
  * once any segment reaches two digits ("1.10.0" < "1.9.0"). `@semanticVersion`
  * stores this value zero-padded so plain range queries sort correctly.
+ *
+ * Each dot-separated segment is capped at 6 digits (0-999999) to match the
+ * zero-pad width `@semanticVersion` encodes with — a segment beyond that is
+ * a compile-time error rather than a value that silently sorts incorrectly.
  */
-@pattern("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$")
+@pattern("^(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})$")
 scalar SemanticVersion extends string;
 
 /**
@@ -63,7 +67,7 @@ scalar SemanticVersion extends string;
  * DynamoDB's byte-lexicographic key comparison.
  *
  * Emits a `set`/`get` transform pair on the generated ElectroDB attribute:
- * `set` zero-pads each dot-separated segment (`"1.10.0"` -> `"00001.00010.00000"`)
+ * `set` zero-pads each dot-separated segment (`"1.10.0"` -> `"000001.000010.000000"`)
  * before persisting, `get` reverses it, so callers always see the plain
  * `"1.10.0"` string. A sort key carrying this attribute answers "give me the
  * highest version" with a native `ScanIndexForward:false, Limit:1` query,
@@ -71,7 +75,8 @@ scalar SemanticVersion extends string;
  *
  * The target property's type must be (or extend) a string scalar matching
  * semantic-version syntax — use the `SemanticVersion` scalar exported by
- * this library. Applying it to any other type is a compile-time error.
+ * this library. Applying it to any other type, or to a scalar whose pattern
+ * allows a segment wider than 6 digits, is a compile-time error.
  */
 extern dec semanticVersion(target: ModelProperty);
 

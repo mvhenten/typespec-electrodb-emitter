@@ -17,18 +17,18 @@ suite("@semanticVersion decorator", () => {
 			assert.equal(typeof attr.get, "function");
 		});
 
-		test("set zero-pads each dot-separated segment to 5 digits", () => {
+		test("set zero-pads each dot-separated segment to 6 digits", () => {
 			const { set } = ProductRelease.attributes.version;
-			assert.equal(set("1.10.0"), "00001.00010.00000");
-			assert.equal(set("1.9.0"), "00001.00009.00000");
-			assert.equal(set("2.0.0"), "00002.00000.00000");
-			assert.equal(set("1.2.0"), "00001.00002.00000");
+			assert.equal(set("1.10.0"), "000001.000010.000000");
+			assert.equal(set("1.9.0"), "000001.000009.000000");
+			assert.equal(set("2.0.0"), "000002.000000.000000");
+			assert.equal(set("1.2.0"), "000001.000002.000000");
 		});
 
 		test("get reverses the padding back to the plain semver string", () => {
 			const { get } = ProductRelease.attributes.version;
-			assert.equal(get("00001.00010.00000"), "1.10.0");
-			assert.equal(get("00002.00000.00000"), "2.0.0");
+			assert.equal(get("000001.000010.000000"), "1.10.0");
+			assert.equal(get("000002.000000.000000"), "2.0.0");
 		});
 
 		test("round-trips losslessly: get(set(x)) === x for any valid semver string", () => {
@@ -41,7 +41,7 @@ suite("@semanticVersion decorator", () => {
 				"0.0.1",
 				"0.0.0",
 				"10.20.30",
-				"99999.99999.99999",
+				"999999.999999.999999",
 			]) {
 				assert.equal(get(set(version)), version);
 			}
@@ -125,30 +125,51 @@ suite("@semanticVersion decorator", () => {
 	);
 });
 
+function compileFixtureExpectingFailure(fixturePath: string): string {
+	let combinedOutput = "";
+
+	assert.throws(
+		() =>
+			execFileSync(
+				tspBin,
+				["compile", fixturePath, "--config", "test/tspconfig.yaml"],
+				{
+					stdio: "pipe",
+				},
+			),
+		(error: unknown) => {
+			assert.ok(error instanceof Error);
+			const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+			// TypeSpec's diagnostic text isn't guaranteed to land on a single
+			// stream, so check both rather than assuming stdout.
+			combinedOutput = `${String(stdout ?? "")}${String(stderr ?? "")}`;
+			return true;
+		},
+	);
+
+	return combinedOutput;
+}
+
 suite("@semanticVersion compile-time diagnostic", () => {
 	test("applying @semanticVersion to a non-semver-typed property is a compile-time error, not a silent no-op", () => {
-		assert.throws(
-			() =>
-				execFileSync(
-					tspBin,
-					[
-						"compile",
-						"test/fixtures/invalid-semantic-version.tsp",
-						"--config",
-						"test/tspconfig.yaml",
-					],
-					{ stdio: "pipe" },
-				),
-			(error: unknown) => {
-				assert.ok(error instanceof Error);
-				const output = String((error as { stdout?: Buffer }).stdout ?? "");
-				assert.match(output, /myLibrary\/semantic-version-invalid-type/);
-				assert.match(
-					output,
-					/@semanticVersion can only be applied to a property typed as \(or extending\) a string matching the semantic version pattern/,
-				);
-				return true;
-			},
+		const output = compileFixtureExpectingFailure(
+			"test/fixtures/invalid-semantic-version.tsp",
+		);
+		assert.match(output, /myLibrary\/semantic-version-invalid-type/);
+		assert.match(
+			output,
+			/@semanticVersion can only be applied to a property typed as \(or extending\) a string matching the semantic version pattern/,
+		);
+	});
+
+	test("applying @semanticVersion to a scalar whose pattern allows a segment beyond 6 digits is a compile-time error", () => {
+		const output = compileFixtureExpectingFailure(
+			"test/fixtures/oversized-semantic-version.tsp",
+		);
+		assert.match(output, /myLibrary\/semantic-version-invalid-type/);
+		assert.match(
+			output,
+			/@semanticVersion can only be applied to a property typed as \(or extending\) a string matching the semantic version pattern/,
 		);
 	});
 });

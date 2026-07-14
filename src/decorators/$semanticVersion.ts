@@ -14,7 +14,7 @@ import { reportDiagnostic, StateKeys } from "../lib.js";
  * hand-rolling an equivalent regex.
  */
 export const SEMANTIC_VERSION_PATTERN =
-	"^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$";
+	"^(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})$";
 
 function hasSemanticVersionPattern(
 	program: Program,
