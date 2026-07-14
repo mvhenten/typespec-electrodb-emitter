@@ -282,12 +282,12 @@ options:
       config-type: "BaseModelConfig"
 ```
 
-For every `@entity` model (e.g. `Pet`), the emitter generates a standalone module — `pet-model-base.mjs`/`.cjs`/`.d.ts` — that is **not** re-exported from a shared barrel:
+For every `@entity` model (e.g. `Pet`), the emitter generates a standalone module — `pet-model-base.mjs`/`.cjs`/`.d.mts`/`.d.cts` — that is **not** re-exported from a shared barrel:
 
 ```ts
-// generated: pet-model-base.mjs / pet-model-base.d.ts
+// generated: pet-model-base.mjs / pet-model-base.d.mts
 import { BaseModel, type BaseModelConfig } from "@example/electrodb-base";
-import { Pet } from "./index.js";
+import { Pet } from "./index.mjs";
 
 export class PetModelBase extends BaseModel<typeof Pet> {
 	constructor(config: BaseModelConfig) {
@@ -299,7 +299,7 @@ export class PetModelBase extends BaseModel<typeof Pet> {
 Consumers import exactly the entities they need, directly by subpath:
 
 ```ts
-import { PetModelBase } from "@mycorp/ddb-entities/pet-model-base.js";
+import { PetModelBase } from "@mycorp/ddb-entities/pet-model-base";
 ```
 
 Hand-written business logic lives in a subclass, added only when it's needed, and survives regeneration:
@@ -321,6 +321,17 @@ There is deliberately no `model-base.js` (or similar) aggregating all generated 
 - Node's `exports` field only allows the subpaths that were actually generated — there's no deep-import escape hatch to unused, ungenerated code.
 
 Leaving `model-base` unset keeps the emitter's output byte-identical to before this option existed — it is strictly opt-in.
+
+### The runtime base class contract
+
+The emitter only ever generates wiring — `extends <ClassName><typeof Entity>` plus a constructor that calls `super(entity, config)` — so your `class-name` must have exactly this shape:
+
+- Exactly one generic/type parameter, instantiated as `<typeof Entity>` (the ElectroDB schema).
+- A two-argument constructor `(schema, config)`, where `config`'s type is whatever `config-type` names.
+
+A base class with a different generic arity or constructor signature will fail to compile against the generated code with a confusing error, rather than a clear diagnostic from this emitter — adapt or wrap your base class to match this exact shape.
+
+Because the emitter attaches `model-base` output to every model carrying `@entity` state, this also includes derived/param models that re-apply `@entity` to a mutated clone (for example a `Create<Person>` helper that produces a `CreatePerson` entity for input validation). Such a model gets a `CreatePersonModelBase` alongside the "real" table entities' model bases, mirroring how it's already present in the plain schema bundle — worth being aware of if you don't intend those derived models to be instantiable as ElectroDB models in their own right.
 
 ### The safe-write contract
 

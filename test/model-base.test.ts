@@ -1,27 +1,35 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { suite, test } from "node:test";
-
+import { fileURLToPath } from "node:url";
 import * as generatedEntities from "../build/entities-model-base/index.mjs";
+import { toKebabCase } from "../src/emitter.js";
 
-const defaultBuildDir = resolve(import.meta.dirname, "../build/entities");
-const modelBaseBuildDir = resolve(
-	import.meta.dirname,
-	"../build/entities-model-base",
+const tspBin = new URL("../node_modules/.bin/tsp", import.meta.url).pathname;
+
+const defaultBuildDir = fileURLToPath(
+	new URL("../build/entities", import.meta.url),
 );
+const modelBaseBuildDir = fileURLToPath(
+	new URL("../build/entities-model-base", import.meta.url),
+);
+
+function modelBasePath(...segments: string[]): string {
+	return fileURLToPath(
+		new URL(
+			`../build/entities-model-base/${segments.join("/")}`,
+			import.meta.url,
+		),
+	);
+}
 
 // Derived from the actual generated bundle (rather than hardcoded) so this
 // suite can't silently drift out of sync with the fixture's entity list.
+// Uses the emitter's own toKebabCase, rather than a re-implementation, so
+// the test can't drift from the actual name mapping the emitter applies.
 const entityNames = Object.keys(generatedEntities).sort();
-const kebabNames = entityNames.map(toKebabCaseForTest);
-
-function toKebabCaseForTest(name: string): string {
-	return name
-		.replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-		.replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
-		.toLowerCase();
-}
+const kebabNames = entityNames.map(toKebabCase);
 
 suite("model-base option unset (default build)", () => {
 	test("no model-base files are emitted next to the default entity bundle", () => {
@@ -32,7 +40,7 @@ suite("model-base option unset (default build)", () => {
 
 	test("package.json exports only the '.' entry", () => {
 		const pkg = JSON.parse(
-			readFileSync(resolve(defaultBuildDir, "package.json"), "utf-8"),
+			readFileSync(`${defaultBuildDir}/package.json`, "utf-8"),
 		);
 		assert.deepEqual(Object.keys(pkg.exports), ["."]);
 	});
@@ -49,14 +57,20 @@ suite("model-base option set", () => {
 		);
 
 		for (const kebabName of kebabNames) {
-			for (const ext of [".mjs", ".cjs", ".d.ts", ".d.mts", ".d.cts"]) {
+			// Only .mjs/.cjs/.d.mts/.d.cts are emitted; a plain .d.ts would be
+			// dead output since the exports map's subpath type resolution only
+			// reads import.types/require.types (the .d.mts/.d.cts variants).
+			for (const ext of [".mjs", ".cjs", ".d.mts", ".d.cts"]) {
 				assert.ok(
-					existsSync(
-						resolve(modelBaseBuildDir, `${kebabName}-model-base${ext}`),
-					),
+					existsSync(modelBasePath(`${kebabName}-model-base${ext}`)),
 					`expected ${kebabName}-model-base${ext} to exist`,
 				);
 			}
+			assert.equal(
+				existsSync(modelBasePath(`${kebabName}-model-base.d.ts`)),
+				false,
+				`${kebabName}-model-base.d.ts should not be emitted (dead output)`,
+			);
 		}
 	});
 
@@ -65,7 +79,7 @@ suite("model-base option set", () => {
 	)) {
 		test(`${entityName}ModelBase wires the correct base class, schema and config type`, () => {
 			const source = readFileSync(
-				resolve(modelBaseBuildDir, `${kebabName}-model-base.d.ts`),
+				modelBasePath(`${kebabName}-model-base.d.mts`),
 				"utf-8",
 			);
 
@@ -83,15 +97,12 @@ suite("model-base option set", () => {
 					`export declare class ${entityName}ModelBase extends BaseModel<typeof ${entityName}>`,
 				),
 			);
-			assert.match(
-				source,
-				/constructor\(config: BaseModelConfig\);/,
-			);
+			assert.match(source, /constructor\(config: BaseModelConfig\);/);
 		});
 
 		test(`${entityName}ModelBase file imports no other entity's schema`, () => {
 			const source = readFileSync(
-				resolve(modelBaseBuildDir, `${kebabName}-model-base.mjs`),
+				modelBasePath(`${kebabName}-model-base.mjs`),
 				"utf-8",
 			);
 
@@ -112,7 +123,7 @@ suite("model-base option set", () => {
 
 	test("package.json has an explicit exports entry per entity, no wildcard/barrel", () => {
 		const pkg = JSON.parse(
-			readFileSync(resolve(modelBaseBuildDir, "package.json"), "utf-8"),
+			readFileSync(modelBasePath("package.json"), "utf-8"),
 		);
 		const exportKeys = Object.keys(pkg.exports).sort();
 		const expectedKeys = [
@@ -139,5 +150,39 @@ suite("model-base option set", () => {
 				},
 			});
 		}
+	});
+});
+
+suite("model-base kebab-case name collisions", () => {
+	test("two entity names that kebab-case to the same base name is a compile-time error, not a silent overwrite", () => {
+		let combinedOutput = "";
+
+		assert.throws(
+			() =>
+				execFileSync(
+					tspBin,
+					[
+						"compile",
+						"test/fixtures/model-base-name-collision.tsp",
+						"--config",
+						"test/tspconfig.model-base-collision.yaml",
+					],
+					{ stdio: "pipe" },
+				),
+			(error: unknown) => {
+				assert.ok(error instanceof Error);
+				const { stdout, stderr } = error as {
+					stdout?: Buffer;
+					stderr?: Buffer;
+				};
+				combinedOutput = `${String(stdout ?? "")}${String(stderr ?? "")}`;
+				return true;
+			},
+		);
+
+		assert.match(combinedOutput, /myLibrary\/model-base-name-collision/);
+		assert.match(combinedOutput, /api-key/);
+		assert.match(combinedOutput, /APIKey/);
+		assert.match(combinedOutput, /ApiKey/);
 	});
 });

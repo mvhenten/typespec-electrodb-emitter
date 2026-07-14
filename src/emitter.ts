@@ -26,7 +26,7 @@ import {
 import type { Attribute, CustomAttribute, Schema } from "electrodb";
 import * as ts from "typescript";
 
-import { type ModelBaseOptions, StateKeys } from "./lib.js";
+import { type ModelBaseOptions, reportDiagnostic, StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
 
 /**
@@ -34,7 +34,7 @@ import { RawCode, stringifyObject } from "./stringify.js";
  * name suitable for a generated file name / package export subpath, e.g.
  * "Person" -> "person", "HTTPHeader" -> "http-header", "Person2" -> "person2".
  */
-function toKebabCase(name: string): string {
+export function toKebabCase(name: string): string {
 	return name
 		.replace(/([a-z0-9])([A-Z])/g, "$1-$2")
 		.replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
@@ -792,19 +792,47 @@ function buildModelBaseSource(
  * emitter option). Returns the package.json `exports` entries for the
  * emitted files, one per entity, so consumers can import exactly the
  * entities they need without a barrel re-exporting everything.
+ *
+ * Entity names are user-controlled and only compared after kebab-casing,
+ * so two distinct model names that collide once kebab-cased (e.g. `APIKey`
+ * and `ApiKey` both become `api-key`) would otherwise silently overwrite
+ * each other's generated files and collapse into a single `exports` entry.
+ * Such collisions are reported as a compile error instead, and no files
+ * are emitted for the colliding group.
  */
 async function emitModelBaseFiles(
 	context: EmitContext,
-	entityNames: string[],
+	models: Model[],
 ): Promise<Record<string, unknown>> {
 	const options = context.options["model-base"];
 	if (!options) return {};
 
 	const exportsEntries: Record<string, unknown> = {};
 
-	for (const entityName of entityNames) {
-		const kebabName = toKebabCase(entityName);
+	const groupsByKebabName = new Map<string, Model[]>();
+	for (const model of models) {
+		const kebabName = toKebabCase(model.name);
+		const group = groupsByKebabName.get(kebabName) ?? [];
+		group.push(model);
+		groupsByKebabName.set(kebabName, group);
+	}
+
+	for (const [kebabName, group] of groupsByKebabName) {
 		const baseName = `${kebabName}-model-base`;
+
+		if (group.length > 1) {
+			reportDiagnostic(context.program, {
+				code: "model-base-name-collision",
+				target: group[0],
+				format: {
+					names: group.map((model) => model.name).join(", "),
+					baseName,
+				},
+			});
+			continue;
+		}
+
+		const entityName = group[0].name;
 
 		// The main schema bundle has no plain "index.js" file (only
 		// index.mjs/index.cjs), so the ESM and CJS variants of this file
@@ -828,10 +856,12 @@ async function emitModelBaseFiles(
 			},
 		});
 
-		await emitFile(context.program, {
-			path: resolvePath(context.emitterOutputDir, `${baseName}.d.ts`),
-			content: esmDeclarations.outputText,
-		});
+		// Only .d.mts/.d.cts are emitted: the generated `exports` map's
+		// subpath type resolution reads `import.types`/`require.types`,
+		// which point at those files. A plain `.d.ts` would never be
+		// referenced by anything (the root bundle's `.d.ts` exists for its
+		// legacy top-level `types` field, which model-base subpaths don't
+		// have), so it isn't emitted here.
 		await emitFile(context.program, {
 			path: resolvePath(context.emitterOutputDir, `${baseName}.d.mts`),
 			content: esmDeclarations.outputText,
@@ -870,6 +900,7 @@ export async function $onEmit(context: EmitContext) {
 
 	// biome-ignore lint/suspicious/noExplicitAny: <ElecroDB Schema>
 	const entities: Record<string, Schema<any, any, any>> = {};
+	const entityModels: Model[] = [];
 
 	for (const [model, props] of context.program
 		.stateMap(StateKeys.electroEntity)
@@ -887,6 +918,7 @@ export async function $onEmit(context: EmitContext) {
 				version: props.version ?? "1",
 			},
 		};
+		entityModels.push(model);
 	}
 
 	const entityDefinitions = Object.entries(entities)
@@ -961,10 +993,7 @@ export async function $onEmit(context: EmitContext) {
 		content: cjs.outputText,
 	});
 
-	const modelBaseExports = await emitModelBaseFiles(
-		context,
-		Object.keys(entities),
-	);
+	const modelBaseExports = await emitModelBaseFiles(context, entityModels);
 
 	await emitFile(context.program, {
 		path: resolvePath(context.emitterOutputDir, "package.json"),

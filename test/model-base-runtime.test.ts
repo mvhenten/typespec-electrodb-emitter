@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { suite, test } from "node:test";
 import { BaseModel } from "@example/electrodb-base";
-
 import * as generatedEntities from "../build/entities-model-base/index.mjs";
+import { toKebabCase } from "../src/emitter.js";
 
 const require = createRequire(import.meta.url);
 
@@ -15,24 +15,17 @@ const require = createRequire(import.meta.url);
  *
  * The entity list is derived from the actual generated bundle rather than
  * hardcoded, so this suite can't silently drift out of sync with the
- * fixture (see test/main.tsp for the source of truth).
+ * fixture (see test/main.tsp for the source of truth). Uses the emitter's
+ * own toKebabCase, rather than a re-implementation, so the test can't
+ * drift from the actual name mapping the emitter applies.
  */
-function toKebabCase(name: string): string {
-	return name
-		.replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-		.replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
-		.toLowerCase();
-}
-
 const entityNames = Object.keys(generatedEntities).sort();
 
 suite("Generated ModelBase classes (ESM runtime)", () => {
 	for (const entityName of entityNames) {
 		const kebabName = toKebabCase(entityName);
 		const className = `${entityName}ModelBase`;
-		const schema = (generatedEntities as Record<string, unknown>)[
-			entityName
-		];
+		const schema = (generatedEntities as Record<string, unknown>)[entityName];
 
 		test(`${className} extends the configured runtime base class`, async () => {
 			const mod = await import(
@@ -61,9 +54,10 @@ suite("Generated ModelBase classes (ESM runtime)", () => {
 
 suite("Generated ModelBase classes (CJS runtime)", () => {
 	const { BaseModel: CjsBaseModel } = require("@example/electrodb-base");
-	const cjsEntities: Record<string, unknown> = require(
-		"../build/entities-model-base/index.cjs",
-	);
+	const cjsEntities: Record<
+		string,
+		unknown
+	> = require("../build/entities-model-base/index.cjs");
 
 	for (const entityName of entityNames) {
 		const kebabName = toKebabCase(entityName);

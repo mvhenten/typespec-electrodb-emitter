@@ -1,0 +1,11 @@
+emit:
+  - "typespec-electrodb-emitter"
+options:
+  "typespec-electrodb-emitter":
+    package-name: "@mycorp/ddb-entities-collision-fixture"
+    package-version: "0.1.0"
+    emitter-output-dir: "{cwd}/build/entities-model-base-collision-fixture"
+    model-base:
+      module: "@example/electrodb-base"
+      class-name: "BaseModel"
+      config-type: "BaseModelConfig"

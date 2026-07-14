@@ -49,7 +49,7 @@
 		"prepublishOnly": "npm run build",
 		"test:biome": "biome check src",
 		"test:emit": "tsp compile test/main.tsp --config test/tspconfig.yaml",
-		"test:emit:model-base": "tsp compile test/main.tsp --config test/tspconfig.model-base.yaml",
+		"test:emit:model-base": "rm -rf build/entities-model-base && tsp compile test/main.tsp --config test/tspconfig.model-base.yaml",
 		"test:unit": "node --import tsx --test test/**.test.ts",
 		"test:types": "tsc -p tsconfig.test.json"
 	},

@@ -1,4 +1,8 @@
-import { createTypeSpecLibrary, type JSONSchemaType } from "@typespec/compiler";
+import {
+	createTypeSpecLibrary,
+	type JSONSchemaType,
+	paramMessage,
+} from "@typespec/compiler";
 
 export interface ModelBaseOptions {
 	module: string;
@@ -63,6 +67,14 @@ export const $lib = createTypeSpecLibrary({
 			messages: {
 				default:
 					"@semanticVersion can only be applied to a property typed as (or extending) a string matching the semantic version pattern, e.g. the `SemanticVersion` scalar exported by this library.",
+			},
+		},
+		"model-base-name-collision": {
+			severity: "error",
+			description:
+				"Two or more @entity models produce the same kebab-case model-base file/export name.",
+			messages: {
+				default: paramMessage`Entities ${"names"} all map to the same model-base name '${"baseName"}' (e.g. 'APIKey' and 'ApiKey' both kebab-case to 'api-key'). Rename one of the entities so their model-base output doesn't collide.`,
 			},
 		},
 	},
