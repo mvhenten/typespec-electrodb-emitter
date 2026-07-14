@@ -393,11 +393,37 @@ suite("Person Entity", () => {
 		});
 
 		test("coffeePreferences has correct full structure", () => {
-			assert.deepEqual(Person.attributes.coffeePreferences, {
+			const { set, ...rest } = Person.attributes.coffeePreferences as {
+				set?: (value?: string[]) => string[] | undefined;
+				[key: string]: unknown;
+			};
+
+			assert.deepEqual(rest, {
 				type: "set",
 				items: ["01", "02", "03"],
 				required: true,
 			});
+			assert.equal(typeof set, "function");
+		});
+
+		test("coffeePreferences has a set transform", () => {
+			assert.equal(typeof Person.attributes.coffeePreferences.set, "function");
+		});
+
+		test("coffeePreferences set transform returns undefined for an empty array", () => {
+			const set = Person.attributes.coffeePreferences.set as (
+				value?: string[],
+			) => string[] | undefined;
+
+			assert.equal(set([]), undefined);
+		});
+
+		test("coffeePreferences set transform passes non-empty arrays through unchanged", () => {
+			const set = Person.attributes.coffeePreferences.set as (
+				value?: string[],
+			) => string[] | undefined;
+
+			assert.deepEqual(set(["01", "02"]), ["01", "02"]);
 		});
 	});
 
