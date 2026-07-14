@@ -269,8 +269,70 @@ zero-pad width the encoder uses; a scalar whose pattern allows a wider
 segment is rejected at compile time rather than silently mis-sorting once a
 segment overflows the pad.
 
+## Opt-in model base class emission (generation-gap pattern)
+
+By default, the emitter only produces the ElectroDB schema bundle (`index.mjs`/`.cjs`/`.d.ts`). Enable the `model-base` option to additionally emit **one generation-gap base class per `@entity`**, wiring it to a runtime base class you supply:
+
+```yaml
+options:
+  typespec-electrodb-emitter:
+    model-base:
+      module: "@example/electrodb-base"
+      class-name: "BaseModel"
+      config-type: "BaseModelConfig"
+```
+
+For every `@entity` model (e.g. `Pet`), the emitter generates a standalone module — `pet-model-base.mjs`/`.cjs`/`.d.ts` — that is **not** re-exported from a shared barrel:
+
+```ts
+// generated: pet-model-base.mjs / pet-model-base.d.ts
+import { BaseModel, type BaseModelConfig } from "@example/electrodb-base";
+import { Pet } from "./index.js";
+
+export class PetModelBase extends BaseModel<typeof Pet> {
+	constructor(config: BaseModelConfig) {
+		super(Pet, config);
+	}
+}
+```
+
+Consumers import exactly the entities they need, directly by subpath:
+
+```ts
+import { PetModelBase } from "@mycorp/ddb-entities/pet-model-base.js";
+```
+
+Hand-written business logic lives in a subclass, added only when it's needed, and survives regeneration:
+
+```ts
+export class PetModel extends PetModelBase {
+	adopt(petId: string) {
+		/* business logic */
+	}
+}
+```
+
+### Why there's no barrel export
+
+There is deliberately no `model-base.js` (or similar) aggregating all generated classes, and no wildcard `exports` entry in the generated `package.json`. Each entity gets its own file and its own explicit `exports["./<entity>-model-base"]` entry. This means:
+
+- Importing one entity's model base never pulls in another entity's code.
+- It never transitively loads your runtime base-class module unless you actually import a `*-model-base` file that needs it.
+- Node's `exports` field only allows the subpaths that were actually generated — there's no deep-import escape hatch to unused, ungenerated code.
+
+Leaving `model-base` unset keeps the emitter's output byte-identical to before this option existed — it is strictly opt-in.
+
+### The safe-write contract
+
+This feature exists to close a real race condition: DynamoDB GSI reads (and default primary-key reads) are eventually consistent, so reading an item back immediately after writing it can intermittently return stale or missing data. Your runtime base class (the `module`/`class-name` you configure) is expected to guarantee, for every write path it exposes:
+
+- `update` / `upsert` / `patch` execute with `{ response: "all_new" }` and return the full written item — never a follow-up read.
+- `create` / `put` return the item ElectroDB composes locally from the input — no round-trip read is needed or should be performed.
+- No write path reads an item back after writing it.
+
+**Known limitation — transactions:** ElectroDB's `Service.transaction.write().commit()` only supports `response: "all_old"`; DynamoDB's `TransactWriteItems` has no `ReturnValues` for new state, so `all_new` isn't possible there. Post-transaction reads carry the same race and aren't fixed by this pattern. If your runtime base later adds transaction helpers, prefer composing the result locally from the transaction inputs over reading it back.
+
 ## Documentation
 
-This extension itself is driven by TypeSpec type definitions, mostly pieced together by reading existing (REST) extensions and https://typespec.io/docs/extending-typespec/create-decorators/
 
 See [./tsp/main.tsp](/tsp/main.tsp) for the type definitions of the annotations. 

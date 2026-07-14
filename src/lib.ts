@@ -1,8 +1,35 @@
 import { createTypeSpecLibrary, type JSONSchemaType } from "@typespec/compiler";
+
+export interface ModelBaseOptions {
+	module: string;
+	"class-name": string;
+	"config-type": string;
+}
+
 export interface EmitterOptions {
 	"package-name": string;
 	"package-version": string;
+	"model-base"?: ModelBaseOptions;
 }
+
+const ModelBaseOptionsSchema: JSONSchemaType<ModelBaseOptions> = {
+	type: "object",
+	required: ["module", "class-name", "config-type"],
+	properties: {
+		module: {
+			nullable: false,
+			type: "string",
+		},
+		"class-name": {
+			nullable: false,
+			type: "string",
+		},
+		"config-type": {
+			nullable: false,
+			type: "string",
+		},
+	},
+};
 
 const EmitterOptionsSchema: JSONSchemaType<EmitterOptions> = {
 	type: "object",
@@ -17,6 +44,11 @@ const EmitterOptionsSchema: JSONSchemaType<EmitterOptions> = {
 			default: "1.0.0",
 			nullable: false,
 			type: "string",
+		},
+		"model-base": {
+			...ModelBaseOptionsSchema,
+			nullable: true,
+			default: undefined,
 		},
 	},
 };

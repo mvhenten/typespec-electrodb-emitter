@@ -1,0 +1,17 @@
+{
+	"name": "@example/electrodb-base",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Minimal stub runtime base class used to smoke-test generated *-model-base files actually load and wire up correctly.",
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.mjs",
+	"types": "./index.d.ts",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"import": "./index.mjs",
+			"require": "./index.cjs"
+		}
+	}
+}
