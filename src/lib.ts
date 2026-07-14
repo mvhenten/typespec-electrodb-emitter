@@ -1,8 +1,39 @@
-import { createTypeSpecLibrary, type JSONSchemaType } from "@typespec/compiler";
+import {
+	createTypeSpecLibrary,
+	type JSONSchemaType,
+	paramMessage,
+} from "@typespec/compiler";
+
+export interface ModelBaseOptions {
+	module: string;
+	"class-name": string;
+	"config-type": string;
+}
+
 export interface EmitterOptions {
 	"package-name": string;
 	"package-version": string;
+	"model-base"?: ModelBaseOptions;
 }
+
+const ModelBaseOptionsSchema: JSONSchemaType<ModelBaseOptions> = {
+	type: "object",
+	required: ["module", "class-name", "config-type"],
+	properties: {
+		module: {
+			nullable: false,
+			type: "string",
+		},
+		"class-name": {
+			nullable: false,
+			type: "string",
+		},
+		"config-type": {
+			nullable: false,
+			type: "string",
+		},
+	},
+};
 
 const EmitterOptionsSchema: JSONSchemaType<EmitterOptions> = {
 	type: "object",
@@ -18,6 +49,11 @@ const EmitterOptionsSchema: JSONSchemaType<EmitterOptions> = {
 			nullable: false,
 			type: "string",
 		},
+		"model-base": {
+			...ModelBaseOptionsSchema,
+			nullable: true,
+			default: undefined,
+		},
 	},
 };
 
@@ -31,6 +67,14 @@ export const $lib = createTypeSpecLibrary({
 			messages: {
 				default:
 					"@semanticVersion can only be applied to a property typed as (or extending) a string matching the semantic version pattern, e.g. the `SemanticVersion` scalar exported by this library.",
+			},
+		},
+		"model-base-name-collision": {
+			severity: "error",
+			description:
+				"Two or more @entity models produce the same kebab-case model-base file/export name.",
+			messages: {
+				default: paramMessage`Entities ${"names"} all map to the same model-base name '${"baseName"}' (e.g. 'APIKey' and 'ApiKey' both kebab-case to 'api-key'). Rename one of the entities so their model-base output doesn't collide.`,
 			},
 		},
 	},

@@ -26,8 +26,20 @@ import {
 import type { Attribute, CustomAttribute, Schema } from "electrodb";
 import * as ts from "typescript";
 
-import { StateKeys } from "./lib.js";
+import { type ModelBaseOptions, reportDiagnostic, StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
+
+/**
+ * Converts a PascalCase (or camelCase) entity name into a kebab-case base
+ * name suitable for a generated file name / package export subpath, e.g.
+ * "Person" -> "person", "HTTPHeader" -> "http-header", "Person2" -> "person2".
+ */
+export function toKebabCase(name: string): string {
+	return name
+		.replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+		.replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
+		.toLowerCase();
+}
 
 /**
  * Extracts a primitive default value from a TypeSpec Value.
@@ -744,12 +756,151 @@ function isModel(type: Type): asserts type is Model {
 	assert(type.kind === "Model", "Type must be a model");
 }
 
+/**
+ * Builds the TypeScript source for a single entity's generation-gap model
+ * base class. This is deliberately emitted as one standalone module per
+ * entity (not a shared barrel) so a consumer that only needs a subset of
+ * entities' model bases never pulls in the others, or their runtime base
+ * class dependency, transitively.
+ */
+function buildModelBaseSource(
+	entityName: string,
+	options: ModelBaseOptions,
+	schemaSpecifier: string,
+): string {
+	const {
+		module,
+		"class-name": className,
+		"config-type": configType,
+	} = options;
+
+	return [
+		`import { ${className}, type ${configType} } from "${module}";`,
+		`import { ${entityName} } from "${schemaSpecifier}";`,
+		"",
+		`export class ${entityName}ModelBase extends ${className}<typeof ${entityName}> {`,
+		`\tconstructor(config: ${configType}) {`,
+		`\t\tsuper(${entityName}, config);`,
+		"\t}",
+		"}",
+		"",
+	].join("\n");
+}
+
+/**
+ * Emits the per-entity model base files (opt-in via the "model-base"
+ * emitter option). Returns the package.json `exports` entries for the
+ * emitted files, one per entity, so consumers can import exactly the
+ * entities they need without a barrel re-exporting everything.
+ *
+ * Entity names are user-controlled and only compared after kebab-casing,
+ * so two distinct model names that collide once kebab-cased (e.g. `APIKey`
+ * and `ApiKey` both become `api-key`) would otherwise silently overwrite
+ * each other's generated files and collapse into a single `exports` entry.
+ * Such collisions are reported as a compile error instead, and no files
+ * are emitted for the colliding group.
+ */
+async function emitModelBaseFiles(
+	context: EmitContext,
+	models: Model[],
+): Promise<Record<string, unknown>> {
+	const options = context.options["model-base"];
+	if (!options) return {};
+
+	const exportsEntries: Record<string, unknown> = {};
+
+	const groupsByKebabName = new Map<string, Model[]>();
+	for (const model of models) {
+		const kebabName = toKebabCase(model.name);
+		const group = groupsByKebabName.get(kebabName) ?? [];
+		group.push(model);
+		groupsByKebabName.set(kebabName, group);
+	}
+
+	for (const [kebabName, group] of groupsByKebabName) {
+		const baseName = `${kebabName}-model-base`;
+
+		if (group.length > 1) {
+			reportDiagnostic(context.program, {
+				code: "model-base-name-collision",
+				target: group[0],
+				format: {
+					names: group.map((model) => model.name).join(", "),
+					baseName,
+				},
+			});
+			continue;
+		}
+
+		const entityName = group[0].name;
+
+		// The main schema bundle has no plain "index.js" file (only
+		// index.mjs/index.cjs), so the ESM and CJS variants of this file
+		// must each import the schema from the sibling file that actually
+		// exists for their module system.
+		const esmSource = buildModelBaseSource(entityName, options, "./index.mjs");
+		const cjsSource = buildModelBaseSource(entityName, options, "./index.cjs");
+
+		const esmDeclarations = await ts.transpileDeclaration(esmSource, {});
+		const cjsDeclarations = await ts.transpileDeclaration(cjsSource, {});
+		const esm = ts.transpileModule(esmSource, {
+			compilerOptions: {
+				module: ts.ModuleKind.ESNext,
+				target: ts.ScriptTarget.ES2022,
+			},
+		});
+		const cjs = ts.transpileModule(cjsSource, {
+			compilerOptions: {
+				module: ts.ModuleKind.CommonJS,
+				target: ts.ScriptTarget.ES2022,
+			},
+		});
+
+		// Only .d.mts/.d.cts are emitted: the generated `exports` map's
+		// subpath type resolution reads `import.types`/`require.types`,
+		// which point at those files. A plain `.d.ts` would never be
+		// referenced by anything (the root bundle's `.d.ts` exists for its
+		// legacy top-level `types` field, which model-base subpaths don't
+		// have), so it isn't emitted here.
+		await emitFile(context.program, {
+			path: resolvePath(context.emitterOutputDir, `${baseName}.d.mts`),
+			content: esmDeclarations.outputText,
+		});
+		await emitFile(context.program, {
+			path: resolvePath(context.emitterOutputDir, `${baseName}.d.cts`),
+			content: cjsDeclarations.outputText,
+		});
+		await emitFile(context.program, {
+			path: resolvePath(context.emitterOutputDir, `${baseName}.mjs`),
+			content: esm.outputText,
+		});
+		await emitFile(context.program, {
+			path: resolvePath(context.emitterOutputDir, `${baseName}.cjs`),
+			content: cjs.outputText,
+		});
+
+		exportsEntries[`./${baseName}`] = {
+			import: {
+				types: `./${baseName}.d.mts`,
+				default: `./${baseName}.mjs`,
+			},
+			require: {
+				types: `./${baseName}.d.cts`,
+				default: `./${baseName}.cjs`,
+			},
+		};
+	}
+
+	return exportsEntries;
+}
+
 export async function $onEmit(context: EmitContext) {
 	const packageName = context.options["package-name"];
 	const packageVersion = context.options["package-version"];
 
 	// biome-ignore lint/suspicious/noExplicitAny: <ElecroDB Schema>
 	const entities: Record<string, Schema<any, any, any>> = {};
+	const entityModels: Model[] = [];
 
 	for (const [model, props] of context.program
 		.stateMap(StateKeys.electroEntity)
@@ -767,6 +918,7 @@ export async function $onEmit(context: EmitContext) {
 				version: props.version ?? "1",
 			},
 		};
+		entityModels.push(model);
 	}
 
 	const entityDefinitions = Object.entries(entities)
@@ -841,6 +993,8 @@ export async function $onEmit(context: EmitContext) {
 		content: cjs.outputText,
 	});
 
+	const modelBaseExports = await emitModelBaseFiles(context, entityModels);
+
 	await emitFile(context.program, {
 		path: resolvePath(context.emitterOutputDir, "package.json"),
 		content: JSON.stringify(
@@ -863,6 +1017,7 @@ export async function $onEmit(context: EmitContext) {
 							default: "./index.cjs",
 						},
 					},
+					...modelBaseExports,
 				},
 			},
 			null,

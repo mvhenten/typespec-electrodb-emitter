@@ -25,6 +25,7 @@
 	"devDependencies": {
 		"@babel/types": "^7.27.6",
 		"@biomejs/biome": "^2.3.8",
+		"@example/electrodb-base": "file:test/fixtures/electrodb-base-stub",
 		"@types/babel__generator": "^7.27.0",
 		"@types/node": "latest",
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
@@ -44,10 +45,11 @@
 		"pretest": "npm run build",
 		"fix": "biome check --write",
 		"lint": "biome check",
-		"test": "npm run test:biome && npm run test:emit && npm run test:types && npm run test:unit",
+		"test": "npm run test:biome && npm run test:emit && npm run test:emit:model-base && npm run test:types && npm run test:unit",
 		"prepublishOnly": "npm run build",
 		"test:biome": "biome check src",
 		"test:emit": "tsp compile test/main.tsp --config test/tspconfig.yaml",
+		"test:emit:model-base": "rm -rf build/entities-model-base && tsp compile test/main.tsp --config test/tspconfig.model-base.yaml",
 		"test:unit": "node --import tsx --test test/**.test.ts",
 		"test:types": "tsc -p tsconfig.test.json"
 	},
