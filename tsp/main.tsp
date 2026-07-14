@@ -48,6 +48,34 @@ extern dec createdAt(target: ModelProperty, label?: string);
 extern dec updatedAt(target: ModelProperty, label?: string);
 
 /**
+ * A semantic version string (e.g. "1.10.0"). See https://semver.org.
+ *
+ * Intended for use with `@semanticVersion` on a sort key: DynamoDB compares
+ * sort keys byte-lexicographically, which sorts a semver string incorrectly
+ * once any segment reaches two digits ("1.10.0" < "1.9.0"). `@semanticVersion`
+ * stores this value zero-padded so plain range queries sort correctly.
+ */
+@pattern("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$")
+scalar SemanticVersion extends string;
+
+/**
+ * Marks a property as a semantic version that must sort correctly under
+ * DynamoDB's byte-lexicographic key comparison.
+ *
+ * Emits a `set`/`get` transform pair on the generated ElectroDB attribute:
+ * `set` zero-pads each dot-separated segment (`"1.10.0"` -> `"00001.00010.00000"`)
+ * before persisting, `get` reverses it, so callers always see the plain
+ * `"1.10.0"` string. A sort key carrying this attribute answers "give me the
+ * highest version" with a native `ScanIndexForward:false, Limit:1` query,
+ * instead of a hand-maintained "latest" marker.
+ *
+ * The target property's type must be (or extend) a string scalar matching
+ * semantic-version syntax — use the `SemanticVersion` scalar exported by
+ * this library. Applying it to any other type is a compile-time error.
+ */
+extern dec semanticVersion(target: ModelProperty);
+
+/**
  * Define an ElectroDB index. See https://electrodb.dev/en/modeling/indexes/
  *
  * Use either shorthand definition:

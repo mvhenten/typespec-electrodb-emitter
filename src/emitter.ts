@@ -698,6 +698,28 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 		attr.validate = validateFn;
 	}
 
+	if (ctx.program.stateSet(StateKeys.semanticVersion).has(prop)) {
+		assert(attr.type === "string", "@semanticVersion must be a string");
+
+		// @ts-expect-error - set is a valid ElectroDB attribute property
+		attr.set = (val?: string) => {
+			if (val === undefined) return val;
+			return val
+				.split(".")
+				.map((segment) => segment.padStart(5, "0"))
+				.join(".");
+		};
+
+		// @ts-expect-error - get is a valid ElectroDB attribute property
+		attr.get = (val?: string) => {
+			if (val === undefined) return val;
+			return val
+				.split(".")
+				.map((segment) => String(Number(segment)))
+				.join(".");
+		};
+	}
+
 	return attr;
 }
 

@@ -8,11 +8,11 @@ Install this generator in your typespec project:
 
 `npm i -D  typespec-electrodb-emitter`
 
-Then, annotate your models using `@entity`, `@index`, `@createdAt`, `@updatedAt`, `@label`
+Then, annotate your models using `@entity`, `@index`, `@createdAt`, `@updatedAt`, `@label`, `@semanticVersion`
 
 ## Example
 
-Take a peek at the [./demo/main.tsp](./demo/main.tsp) for an of how this works:
+Take a peek at [./test/main.tsp](./test/main.tsp) for a full example of how this works:
 
 ```typespec
 import "typespec-electrodb-emitter";
@@ -219,6 +219,51 @@ export declare const Person: {
     };
 };
 ```
+
+## Sorting semantic versions (`@semanticVersion`)
+
+DynamoDB compares sort keys byte-lexicographically, not numerically, so a
+semantic-version string stored as-is sorts wrong the moment any segment
+reaches two digits: `"1.10.0" < "1.9.0"`. `@semanticVersion` marks a property
+so the generated ElectroDB attribute zero-pads each dot-separated segment on
+write and reverses it on read — callers only ever see the plain `"1.10.0"`
+string, but a sort key carrying this attribute now sorts in true
+semantic-version order, so "give me the highest version" is a native
+`ScanIndexForward:false, Limit:1` query instead of a hand-maintained "latest"
+marker row.
+
+Apply it to a property typed as (or extending) the `SemanticVersion` scalar
+this library exports:
+
+```typespec
+import "typespec-electrodb-emitter";
+
+@entity("productRelease", "catalog")
+@index(
+    "releases",
+    {
+        pk: [ProductRelease.productCode],
+        sk: [ProductRelease.version],
+    }
+)
+model ProductRelease {
+    productCode: string;
+
+    @semanticVersion
+    version: SemanticVersion;
+}
+```
+
+```typescript
+// Highest version for a product, no marker entity or app-level compare:
+await ProductReleaseEntity.query
+    .releases({ productCode: "widget" })
+    .go({ order: "desc", limit: 1 });
+```
+
+Applying `@semanticVersion` to a property whose type isn't (or doesn't
+extend) a string matching the semantic-version pattern is a compile-time
+error — it only ever touches genuine semver fields, not arbitrary strings.
 
 ## Documentation
 
