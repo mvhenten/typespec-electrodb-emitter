@@ -18,6 +18,7 @@ export interface EmitterOptions {
 const ModelBaseOptionsSchema: JSONSchemaType<ModelBaseOptions> = {
 	type: "object",
 	required: ["module", "class-name"],
+	additionalProperties: false,
 	properties: {
 		module: {
 			nullable: false,

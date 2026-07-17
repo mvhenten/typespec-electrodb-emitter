@@ -193,3 +193,52 @@ suite("model-base kebab-case name collisions", () => {
 		assert.match(combinedOutput, /ApiKey/);
 	});
 });
+
+suite("model-base unknown options", () => {
+	test("a stale option left in a tspconfig is a compile-time error naming it, not a silent no-op", () => {
+		let combinedOutput = "";
+
+		assert.throws(
+			() =>
+				execFileSync(
+					tspBin,
+					[
+						"compile",
+						"test/main.tsp",
+						"--config",
+						"test/tspconfig.model-base-stale-option.yaml",
+					],
+					{ stdio: "pipe" },
+				),
+			(error: unknown) => {
+				assert.ok(error instanceof Error);
+				const { stdout, stderr } = error as {
+					stdout?: Buffer;
+					stderr?: Buffer;
+				};
+				combinedOutput = `${String(stdout ?? "")}${String(stderr ?? "")}`;
+				return true;
+			},
+		);
+
+		assert.match(combinedOutput, /invalid-schema/);
+		assert.match(combinedOutput, /must NOT have additional properties/);
+		// The offending option is named, so the reader knows what to remove.
+		assert.match(combinedOutput, /config-type/);
+		assert.match(combinedOutput, /model-base/);
+	});
+
+	test("no output is emitted for a config carrying a stale option", () => {
+		assert.equal(
+			existsSync(
+				fileURLToPath(
+					new URL(
+						"../build/entities-model-base-stale-option-fixture",
+						import.meta.url,
+					),
+				),
+			),
+			false,
+		);
+	});
+});
