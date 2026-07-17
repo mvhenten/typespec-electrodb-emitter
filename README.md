@@ -100,6 +100,29 @@ await ProductReleaseEntity.query
     .go({ order: "desc", limit: 1 });
 ```
 
+#### Reading by version
+
+ElectroDB applies attribute setters on writes only. A version handed to `get`,
+`query`, `patch`, `update`, or `delete` reaches key composition unencoded and
+addresses a row that was never written, so
+`ProductReleaseEntity.get({ productCode: "widget", version: "1.10.0" })` returns
+nothing. Encode the version before it reaches the entity.
+
+With `model-base`, the generated class does it:
+
+```typescript
+await ProductReleaseEntity.get(
+    ProductReleaseModelBase.prepareQuery({ productCode: "widget", version: "1.10.0" }),
+).go();
+```
+
+Without it, call the attribute's own setter, so the padding is never restated:
+
+```typescript
+const version = ProductRelease.attributes.version.set("1.10.0");
+await ProductReleaseEntity.get({ productCode: "widget", version }).go();
+```
+
 ## Model base classes (opt-in)
 
 Set the `model-base` option to also emit one [generation-gap](https://en.wikipedia.org/wiki/Generation_gap_(pattern))
@@ -130,6 +153,12 @@ export class PetModel extends PetModelBase {
 Your `class-name` must take one type parameter, instantiated as
 `<typeof Entity>`. Its constructor is yours: the generated class declares none,
 so it inherits whatever your base class takes.
+
+Every generated class carries a static `prepareQuery`, which encodes any
+`@semanticVersion` attributes in a set of key facets and leaves the rest alone
+(see [Reading by version](#reading-by-version)). It is present on every entity,
+decorated or not, so adding `@semanticVersion` later starts working without
+touching call sites.
 
 The schema arrives as a `protected readonly schema` member, which is set after
 `super()` returns. Your base class must therefore read it lazily rather than

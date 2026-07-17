@@ -770,6 +770,30 @@ function isModel(type: Type): asserts type is Model {
 }
 
 /**
+ * Builds the body of the model base's static `prepareQuery`.
+ *
+ * ElectroDB applies attribute setters on writes only, so a `@semanticVersion`
+ * sort key is stored zero-padded but addressed raw on every read. The encoding
+ * therefore has to happen before ElectroDB sees the facet. The padding
+ * algorithm is never restated here: each attribute's own generated `set` is
+ * the single source of the pad width.
+ */
+function buildPrepareQueryBody(
+	entityName: string,
+	semanticVersionAttributes: string[],
+): string[] {
+	return [
+		"\t\tconst prepared: Record<string, unknown> = { ...input };",
+		...semanticVersionAttributes.flatMap((attributeName) => [
+			`\t\tif (prepared.${attributeName} !== undefined) {`,
+			`\t\t\tprepared.${attributeName} = ${entityName}.attributes.${attributeName}.set(prepared.${attributeName});`,
+			"\t\t}",
+		]),
+		"\t\treturn prepared as T;",
+	];
+}
+
+/**
  * Builds the TypeScript source for a single entity's generation-gap model
  * base class. This is deliberately emitted as one standalone module per
  * entity (not a shared barrel) so a consumer that only needs a subset of
@@ -778,11 +802,19 @@ function isModel(type: Type): asserts type is Model {
  *
  * The schema is bound as a member rather than passed to a constructor, so
  * the runtime base class keeps whatever constructor it already has.
+ *
+ * `prepareQuery` is emitted for every entity, degenerating to an identity for
+ * one with no `@semanticVersion` attributes, so that adding the decorator to
+ * an existing entity does not change the package's export surface and
+ * invalidate every existing call site. It is static because it needs no
+ * instance state, and so cannot read the `schema` instance field: it
+ * references the module-scope schema import directly.
  */
 function buildModelBaseSource(
 	entityName: string,
 	options: ModelBaseOptions,
 	schemaSpecifier: string,
+	semanticVersionAttributes: string[],
 ): string {
 	const { module, "class-name": className } = options;
 
@@ -794,6 +826,10 @@ function buildModelBaseSource(
 		// Annotated explicitly: declaration emit is syntactic, so an inferred
 		// initializer would widen to `any` in the .d.mts/.d.cts output.
 		`\tprotected readonly schema: typeof ${entityName} = ${entityName};`,
+		"",
+		"\tstatic prepareQuery<T extends Record<string, unknown>>(input: T): T {",
+		...buildPrepareQueryBody(entityName, semanticVersionAttributes),
+		"\t}",
 		"}",
 		"",
 	].join("\n");
@@ -844,14 +880,31 @@ async function emitModelBaseFiles(
 			continue;
 		}
 
-		const entityName = group[0].name;
+		const model = group[0];
+		const entityName = model.name;
+		const semanticVersionState = context.program.stateSet(
+			StateKeys.semanticVersion,
+		);
+		const semanticVersionAttributes = [...model.properties.values()]
+			.filter((prop) => semanticVersionState.has(prop))
+			.map((prop) => prop.name);
 
 		// The main schema bundle has no plain "index.js" file (only
 		// index.mjs/index.cjs), so the ESM and CJS variants of this file
 		// must each import the schema from the sibling file that actually
 		// exists for their module system.
-		const esmSource = buildModelBaseSource(entityName, options, "./index.mjs");
-		const cjsSource = buildModelBaseSource(entityName, options, "./index.cjs");
+		const esmSource = buildModelBaseSource(
+			entityName,
+			options,
+			"./index.mjs",
+			semanticVersionAttributes,
+		);
+		const cjsSource = buildModelBaseSource(
+			entityName,
+			options,
+			"./index.cjs",
+			semanticVersionAttributes,
+		);
 
 		const esmDeclarations = await ts.transpileDeclaration(esmSource, {});
 		const cjsDeclarations = await ts.transpileDeclaration(cjsSource, {});
