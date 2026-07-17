@@ -59,6 +59,30 @@ suite("Generated ModelBase classes (ESM runtime)", () => {
 			assert.equal(instance.salt, salt);
 		});
 
+		// prepareQuery is emitted for every entity, decorated or not, so adding
+		// @semanticVersion to an existing entity cannot silently change the
+		// package's export surface and invalidate existing call sites.
+		test(`${className} exposes a static prepareQuery`, async () => {
+			const mod = await import(
+				`../build/entities-model-base/${kebabName}-model-base.mjs`
+			);
+			const ModelBaseClass = mod[className];
+
+			assert.equal(typeof ModelBaseClass.prepareQuery, "function");
+		});
+
+		test(`${className}.prepareQuery preserves the input's shape`, async () => {
+			const mod = await import(
+				`../build/entities-model-base/${kebabName}-model-base.mjs`
+			);
+			const ModelBaseClass = mod[className];
+			const input = { unrelatedFacet: "value" };
+			const prepared = ModelBaseClass.prepareQuery(input);
+
+			assert.deepEqual(prepared, input);
+			assert.notEqual(prepared, input);
+		});
+
 		test(`${className} exposes its schema to the base class after construction`, async () => {
 			const mod = await import(
 				`../build/entities-model-base/${kebabName}-model-base.mjs`
