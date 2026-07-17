@@ -762,26 +762,25 @@ function isModel(type: Type): asserts type is Model {
  * entity (not a shared barrel) so a consumer that only needs a subset of
  * entities' model bases never pulls in the others, or their runtime base
  * class dependency, transitively.
+ *
+ * The schema is bound as a member rather than passed to a constructor, so
+ * the runtime base class keeps whatever constructor it already has.
  */
 function buildModelBaseSource(
 	entityName: string,
 	options: ModelBaseOptions,
 	schemaSpecifier: string,
 ): string {
-	const {
-		module,
-		"class-name": className,
-		"config-type": configType,
-	} = options;
+	const { module, "class-name": className } = options;
 
 	return [
-		`import { ${className}, type ${configType} } from "${module}";`,
+		`import { ${className} } from "${module}";`,
 		`import { ${entityName} } from "${schemaSpecifier}";`,
 		"",
 		`export class ${entityName}ModelBase extends ${className}<typeof ${entityName}> {`,
-		`\tconstructor(config: ${configType}) {`,
-		`\t\tsuper(${entityName}, config);`,
-		"\t}",
+		// Annotated explicitly: declaration emit is syntactic, so an inferred
+		// initializer would widen to `any` in the .d.mts/.d.cts output.
+		`\tprotected readonly schema: typeof ${entityName} = ${entityName};`,
 		"}",
 		"",
 	].join("\n");
