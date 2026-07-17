@@ -134,6 +134,7 @@ options:
     model-base:
       module: "@example/electrodb-base"
       class-name: "BaseModel"
+      config-type: "BaseModelConfig"
 ```
 
 Each entity gets its own file (`pet-model-base.mjs` and friends) with its own
@@ -150,31 +151,15 @@ export class PetModel extends PetModelBase {
 }
 ```
 
-Your `class-name` must take one type parameter, instantiated as
-`<typeof Entity>`. Its constructor is yours: the generated class declares none,
-so it inherits whatever your base class takes.
+Your `class-name` must take one type parameter (instantiated as `<typeof Entity>`)
+and a two-argument constructor `(schema, config)`, where `config-type` names the
+config type. The generated class forwards its own schema to `super(schema, config)`.
 
 Every generated class carries a static `prepareQuery`, which encodes any
 `@semanticVersion` attributes in a set of key facets and leaves the rest alone
 (see [Reading by version](#reading-by-version)). It is present on every entity,
 decorated or not, so adding `@semanticVersion` later starts working without
 touching call sites.
-
-The schema arrives as a `protected readonly schema` member, which is set after
-`super()` returns. Your base class must therefore read it lazily rather than
-during construction:
-
-```ts
-export class BaseModel<S> {
-    protected readonly schema!: S;
-
-    constructor(private readonly client: DynamoDBClient, private readonly table: string) {}
-
-    protected get entity() {
-        return new Entity(this.schema, { client: this.client, table: this.table });
-    }
-}
-```
 
 The emitter generates only this wiring; the base class must provide the
 read-after-write safety it relies on (`update`/`upsert`/`patch` with
