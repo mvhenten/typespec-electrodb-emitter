@@ -77,7 +77,7 @@ suite("model-base option set", () => {
 	for (const [entityName, kebabName] of entityNames.map(
 		(name, i) => [name, kebabNames[i]] as const,
 	)) {
-		test(`${entityName}ModelBase wires the correct base class, schema and config type`, () => {
+		test(`${entityName}ModelBase binds its schema and declares no constructor`, () => {
 			const source = readFileSync(
 				modelBasePath(`${kebabName}-model-base.d.mts`),
 				"utf-8",
@@ -85,7 +85,7 @@ suite("model-base option set", () => {
 
 			assert.match(
 				source,
-				/import \{ BaseModel, type BaseModelConfig \} from "@example\/electrodb-base";/,
+				/import \{ BaseModel \} from "@example\/electrodb-base";/,
 			);
 			assert.match(
 				source,
@@ -97,7 +97,14 @@ suite("model-base option set", () => {
 					`export declare class ${entityName}ModelBase extends BaseModel<typeof ${entityName}>`,
 				),
 			);
-			assert.match(source, /constructor\(config: BaseModelConfig\);/);
+			// Annotated, not inferred: declaration emit is syntactic, so an
+			// inferred initializer would widen to `any` here.
+			assert.match(
+				source,
+				new RegExp(`protected readonly schema: typeof ${entityName};`),
+			);
+			// The base class's own constructor must come through untouched.
+			assert.doesNotMatch(source, /constructor\(/);
 		});
 
 		test(`${entityName}ModelBase file imports no other entity's schema`, () => {
