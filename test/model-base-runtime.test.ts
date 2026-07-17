@@ -13,10 +13,6 @@ const require = createRequire(import.meta.url);
  * as source text), matching the convention already used in
  * entities.test.ts / electrodb.test.ts for the core schema bundle.
  *
- * The stub base class takes `(client, table, salt)` — arguments the emitter
- * knows nothing about — so constructing a generated class through them is
- * what proves the base's constructor is left alone.
- *
  * The entity list is derived from the actual generated bundle rather than
  * hardcoded, so this suite can't silently drift out of sync with the
  * fixture (see test/main.tsp for the source of truth). Uses the emitter's
@@ -24,10 +20,6 @@ const require = createRequire(import.meta.url);
  * drift from the actual name mapping the emitter applies.
  */
 const entityNames = Object.keys(generatedEntities).sort();
-
-const client = { send: () => {} };
-const table = "test-table";
-const salt = "pepper";
 
 suite("Generated ModelBase classes (ESM runtime)", () => {
 	for (const entityName of entityNames) {
@@ -45,18 +37,17 @@ suite("Generated ModelBase classes (ESM runtime)", () => {
 			assert.equal(ModelBaseClass.prototype instanceof BaseModel, true);
 		});
 
-		test(`${className} binds its own schema and inherits the base class constructor`, async () => {
+		test(`${className} forwards its own schema and the config to super()`, async () => {
 			const mod = await import(
 				`../build/entities-model-base/${kebabName}-model-base.mjs`
 			);
 			const ModelBaseClass = mod[className];
-			const instance = new ModelBaseClass(client, table, salt);
+			const config = { table: "test-table", client: {} };
+			const instance = new ModelBaseClass(config);
 
 			assert.equal(instance instanceof BaseModel, true);
 			assert.equal(instance.schema, schema);
-			assert.equal(instance.client, client);
-			assert.equal(instance.table, table);
-			assert.equal(instance.salt, salt);
+			assert.equal(instance.config, config);
 		});
 
 		// prepareQuery is emitted for every entity, decorated or not, so adding
@@ -81,17 +72,6 @@ suite("Generated ModelBase classes (ESM runtime)", () => {
 
 			assert.deepEqual(prepared, input);
 			assert.notEqual(prepared, input);
-		});
-
-		test(`${className} exposes its schema to the base class after construction`, async () => {
-			const mod = await import(
-				`../build/entities-model-base/${kebabName}-model-base.mjs`
-			);
-			const ModelBaseClass = mod[className];
-			const instance = new ModelBaseClass(client, table, salt);
-
-			assert.equal(instance.entity.schema, schema);
-			assert.equal(instance.entity.table, table);
 		});
 	}
 });
@@ -118,19 +98,17 @@ suite("Generated ModelBase classes (CJS runtime)", () => {
 			assert.equal(ModelBaseClass.prototype instanceof CjsBaseModel, true);
 		});
 
-		test(`${className} (cjs) binds its own schema and inherits the base class constructor`, () => {
+		test(`${className} (cjs) forwards its own schema and the config to super()`, () => {
 			const mod = require(
 				`../build/entities-model-base/${kebabName}-model-base.cjs`,
 			);
 			const ModelBaseClass = mod[className];
-			const instance = new ModelBaseClass(client, table, salt);
+			const config = { table: "test-table", client: {} };
+			const instance = new ModelBaseClass(config);
 
 			assert.equal(instance instanceof CjsBaseModel, true);
 			assert.equal(instance.schema, schema);
-			assert.equal(instance.client, client);
-			assert.equal(instance.table, table);
-			assert.equal(instance.salt, salt);
-			assert.equal(instance.entity.schema, schema);
+			assert.equal(instance.config, config);
 		});
 	}
 });

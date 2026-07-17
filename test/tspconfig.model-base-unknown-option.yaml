@@ -1,0 +1,14 @@
+### Carries an option the model-base schema does not define. Compiling with
+### this config is expected to fail loudly, naming the offending option.
+emit:
+  - "typespec-electrodb-emitter"
+options:
+  "typespec-electrodb-emitter":
+    package-name: "@mycorp/ddb-entities-unknown-option-fixture"
+    package-version: "0.1.0"
+    emitter-output-dir: "{cwd}/build/entities-model-base-unknown-option-fixture"
+    model-base:
+      module: "@example/electrodb-base"
+      class-name: "BaseModel"
+      config-type: "BaseModelConfig"
+      unknown-option: "value"

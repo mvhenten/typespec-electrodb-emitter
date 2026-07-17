@@ -800,15 +800,14 @@ function buildPrepareQueryBody(
  * entities' model bases never pulls in the others, or their runtime base
  * class dependency, transitively.
  *
- * The schema is bound as a member rather than passed to a constructor, so
- * the runtime base class keeps whatever constructor it already has.
+ * The schema is passed to the runtime base class's constructor, so the base
+ * class receives it as a `super()` argument on every instantiation.
  *
  * `prepareQuery` is emitted for every entity, degenerating to an identity for
  * one with no `@semanticVersion` attributes, so that adding the decorator to
  * an existing entity does not change the package's export surface and
  * invalidate every existing call site. It is static because it needs no
- * instance state, and so cannot read the `schema` instance field: it
- * references the module-scope schema import directly.
+ * instance state: it references the module-scope schema import directly.
  */
 function buildModelBaseSource(
 	entityName: string,
@@ -816,16 +815,20 @@ function buildModelBaseSource(
 	schemaSpecifier: string,
 	semanticVersionAttributes: string[],
 ): string {
-	const { module, "class-name": className } = options;
+	const {
+		module,
+		"class-name": className,
+		"config-type": configType,
+	} = options;
 
 	return [
-		`import { ${className} } from "${module}";`,
+		`import { ${className}, type ${configType} } from "${module}";`,
 		`import { ${entityName} } from "${schemaSpecifier}";`,
 		"",
 		`export class ${entityName}ModelBase extends ${className}<typeof ${entityName}> {`,
-		// Annotated explicitly: declaration emit is syntactic, so an inferred
-		// initializer would widen to `any` in the .d.mts/.d.cts output.
-		`\tprotected readonly schema: typeof ${entityName} = ${entityName};`,
+		`\tconstructor(config: ${configType}) {`,
+		`\t\tsuper(${entityName}, config);`,
+		"\t}",
 		"",
 		"\tstatic prepareQuery<T extends Record<string, unknown>>(input: T): T {",
 		...buildPrepareQueryBody(entityName, semanticVersionAttributes),

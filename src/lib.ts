@@ -7,6 +7,7 @@ import {
 export interface ModelBaseOptions {
 	module: string;
 	"class-name": string;
+	"config-type": string;
 }
 
 export interface EmitterOptions {
@@ -17,7 +18,7 @@ export interface EmitterOptions {
 
 const ModelBaseOptionsSchema: JSONSchemaType<ModelBaseOptions> = {
 	type: "object",
-	required: ["module", "class-name"],
+	required: ["module", "class-name", "config-type"],
 	additionalProperties: false,
 	properties: {
 		module: {
@@ -25,6 +26,10 @@ const ModelBaseOptionsSchema: JSONSchemaType<ModelBaseOptions> = {
 			type: "string",
 		},
 		"class-name": {
+			nullable: false,
+			type: "string",
+		},
+		"config-type": {
 			nullable: false,
 			type: "string",
 		},

@@ -8,3 +8,4 @@ options:
     model-base:
       module: "@example/electrodb-base"
       class-name: "BaseModel"
+      config-type: "BaseModelConfig"
