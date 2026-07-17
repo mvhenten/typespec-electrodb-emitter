@@ -643,3 +643,41 @@ suite("Enum member types (RefDataLink<Kind>)", () => {
 		);
 	});
 });
+
+suite("Emitted package manifest", () => {
+	const manifest = JSON.parse(
+		readFileSync(
+			new URL("../build/entities/package.json", import.meta.url),
+			"utf8",
+		),
+	);
+
+	test("declares electrodb as a peer dependency", () => {
+		assert.deepEqual(manifest.peerDependencies, { electrodb: "^3.5.0" });
+	});
+
+	test("does not bundle electrodb as a direct dependency", () => {
+		assert.equal(manifest.dependencies, undefined);
+	});
+
+	// The ESM and CJS entrypoints are transpiled separately, so each states the
+	// dependency in its own syntax: `from "electrodb"` and `require("electrodb")`.
+	for (const entrypoint of ["index.mjs", "index.cjs"]) {
+		test(`every bare import in ${entrypoint} is a declared peer dependency`, () => {
+			const source = readFileSync(
+				new URL(`../build/entities/${entrypoint}`, import.meta.url),
+				"utf8",
+			);
+			const specifiers = [
+				...source.matchAll(/(?:from\s*|require\(\s*)"([^"]+)"/g),
+			].map((match) => match[1]);
+			const bare = [
+				...new Set(
+					specifiers.filter((specifier) => !specifier.startsWith(".")),
+				),
+			].sort();
+
+			assert.deepEqual(bare, Object.keys(manifest.peerDependencies));
+		});
+	}
+});

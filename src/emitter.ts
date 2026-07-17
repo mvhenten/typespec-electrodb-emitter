@@ -30,6 +30,19 @@ import { type ModelBaseOptions, reportDiagnostic, StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
 
 /**
+ * Peer dependency range declared on the emitted entities package.
+ *
+ * The floor is the version this emitter builds and type-checks its emitted
+ * output against, so it is what CI verifies — not the version where the API
+ * appeared. `CustomAttributeType`, the only electrodb value the emitted code
+ * calls, ships from 2.5.0 onward, and the emitted type surface references
+ * electrodb nowhere: the coupling is a single runtime call. The floor is
+ * therefore conservative by choice and can be widened by anyone willing to
+ * type-check the emitted output against an older electrodb.
+ */
+const ELECTRODB_PEER_RANGE = "^3.5.0";
+
+/**
  * Converts a PascalCase (or camelCase) entity name into a kebab-case base
  * name suitable for a generated file name / package export subpath, e.g.
  * "Person" -> "person", "HTTPHeader" -> "http-header", "Person2" -> "person2".
@@ -1017,6 +1030,9 @@ export async function $onEmit(context: EmitContext) {
 						},
 					},
 					...modelBaseExports,
+				},
+				peerDependencies: {
+					electrodb: ELECTRODB_PEER_RANGE,
 				},
 			},
 			null,
