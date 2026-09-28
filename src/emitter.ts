@@ -719,8 +719,29 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 		}
 	}
 
-	// Add validation if constraints are present
 	const constraints = getValidationConstraints(ctx, prop);
+
+	// @padded: ElectroDB pads the facet inside every composed key (reads and
+	// writes alike), so only the option is passed through. A value wider than
+	// the pad would be stored unpadded and sort as though it were smaller, so
+	// the pad width also bounds the value at write time; a tighter explicit
+	// @maxValue still wins.
+	const paddedLength = ctx.program.stateMap(StateKeys.padded).get(prop);
+	if (paddedLength !== undefined) {
+		assert(attr.type === "number", "@padded must be a number");
+
+		const widestPaddedValue = 10 ** paddedLength - 1;
+		constraints.minValue = Math.max(constraints.minValue ?? 0, 0);
+		constraints.maxValue = Math.min(
+			constraints.maxValue ?? widestPaddedValue,
+			widestPaddedValue,
+		);
+
+		// @ts-expect-error - padding is a valid ElectroDB attribute property
+		attr.padding = { length: paddedLength, char: "0" };
+	}
+
+	// Add validation if constraints are present
 	const validateFn = buildValidationFunction(constraints, prop.name);
 	if (validateFn) {
 		// @ts-expect-error - validate is a valid ElectroDB attribute property
