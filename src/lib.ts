@@ -86,6 +86,14 @@ export const $lib = createTypeSpecLibrary({
 				default: paramMessage`@padded length must be an integer between 1 and ${"maxLength"} (the digit count of the largest uint64), got ${"length"}.`,
 			},
 		},
+		"padded-on-index-field": {
+			severity: "error",
+			description:
+				"The @padded decorator cannot be applied to a property that is itself an index key field.",
+			messages: {
+				default: paramMessage`@padded cannot be applied to '${"name"}' because it is the '${"keyType"}' key field of index '${"index"}'. ElectroDB does not support padding on an attribute that is also a table index field; rename the property or compose it into the key instead.`,
+			},
+		},
 		"model-base-name-collision": {
 			severity: "error",
 			description:

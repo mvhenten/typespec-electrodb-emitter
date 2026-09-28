@@ -206,4 +206,15 @@ suite("@padded compile-time diagnostics", () => {
 		assert.match(output, /myLibrary\/padded-invalid-length/);
 		assert.match(output, /between 1 and 20 .*got 0/);
 	});
+
+	test("applying @padded to a property that is itself an index key field is a compile-time error, not ElectroDB's runtime throw", () => {
+		const output = compileFixtureExpectingFailure(
+			"test/fixtures/padded-on-index-field.tsp",
+		);
+		assert.match(output, /myLibrary\/padded-on-index-field/);
+		assert.match(
+			output,
+			/@padded cannot be applied to 'sk' because it is the 'sk' key field of index 'items'/,
+		);
+	});
 });
