@@ -282,6 +282,9 @@ model TradeEvent {
     @padded(4)
     attempt: uint8;
 
+    @padded(20)
+    ordinal?: uint64;
+
     payload?: string;
 }
 

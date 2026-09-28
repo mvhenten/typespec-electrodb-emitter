@@ -197,6 +197,7 @@ interface ValidationConstraints {
 	maxValue?: number;
 	pattern?: string;
 	format?: string;
+	exclusiveMaxValue?: number;
 	isInteger?: boolean;
 	isFloat?: boolean;
 	isDateTime?: boolean;
@@ -236,6 +237,11 @@ function buildValidationFunction(
 	if (constraints.maxValue !== undefined) {
 		checks.push(
 			`if (typeof value === "number" && value > ${constraints.maxValue}) return "'${propertyName}' must be at most ${constraints.maxValue}"`,
+		);
+	}
+	if (constraints.exclusiveMaxValue !== undefined) {
+		checks.push(
+			`if (typeof value === "number" && value >= ${constraints.exclusiveMaxValue}) return "'${propertyName}' must be less than ${constraints.exclusiveMaxValue}"`,
 		);
 	}
 
@@ -725,12 +731,8 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 	if (paddedLength !== undefined) {
 		assert(attr.type === "number", "@padded must be a number");
 
-		const widestPaddedValue = 10 ** paddedLength - 1;
 		constraints.minValue = Math.max(constraints.minValue ?? 0, 0);
-		constraints.maxValue = Math.min(
-			constraints.maxValue ?? widestPaddedValue,
-			widestPaddedValue,
-		);
+		constraints.exclusiveMaxValue = 10 ** paddedLength;
 
 		// @ts-expect-error - padding is a valid ElectroDB attribute property
 		attr.padding = { length: paddedLength, char: "0" };

@@ -25,10 +25,19 @@ suite("@padded decorator", () => {
 			assert.equal(typeof validate, "function");
 			assert.equal(validate(0), true);
 			assert.equal(validate(9999), true);
-			assert.throws(() => validate(10000), /'attempt' must be at most 9999/);
+			assert.throws(() => validate(10000), /'attempt' must be less than 10000/);
 			assert.throws(() => validate(-1), /'attempt' must be at least 0/);
 			assert.throws(() => validate(1.5), /'attempt' must be an integer/);
 		});
+	});
+
+	test("a 20-digit pad rejects 10^20 exactly, which an inclusive bound would round into range", () => {
+		const { validate } = TradeEvent.attributes.ordinal;
+		assert.equal(validate(Number.MAX_SAFE_INTEGER), true);
+		assert.throws(
+			() => validate(10 ** 20),
+			/'ordinal' must be less than 100000000000000000000/,
+		);
 	});
 
 	suite("key composition", () => {
@@ -142,7 +151,7 @@ suite("@padded decorator", () => {
 						eventSequence: 1,
 						attempt: 12345,
 					}).params(),
-				/'attempt' must be at most 9999/,
+				/'attempt' must be less than 10000/,
 			);
 		});
 
