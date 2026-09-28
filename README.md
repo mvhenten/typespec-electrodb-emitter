@@ -61,6 +61,7 @@ Annotate models with `@entity` and `@index`, and properties with the rest.
 | `@createdAt(label?)` | property | Managed [created-at](https://electrodb.dev/en/recipes/created-at-updated-at/) timestamp. |
 | `@updatedAt(label?)` | property | Managed [updated-at](https://electrodb.dev/en/recipes/created-at-updated-at/) timestamp. |
 | `@semanticVersion` | property | Stores a semver sort key that sorts correctly. |
+| `@padded(length)` | property | Zero-pads an unsigned integer key facet so it sorts numerically. |
 
 `@index` takes a shorthand (`{ pk: [Model.id] }`) or a full access pattern with
 `index`, `collection`, `scope`, `pk`, and `sk`. See
@@ -122,6 +123,58 @@ Without it, call the attribute's own setter, so the padding is never restated:
 const version = ProductRelease.attributes.version.set("1.10.0");
 await ProductReleaseEntity.get({ productCode: "widget", version }).go();
 ```
+
+### `@padded(length)`
+
+The same byte-lexicographic comparison sorts an integer key facet wrong the
+moment it reaches two digits (`"10" < "9"`). `@padded(length)` passes
+ElectroDB's `padding: { length, char: "0" }` through to the attribute, so the
+facet is zero-padded inside every composed key while the stored attribute
+stays a number. A monotonic sequence per aggregate (event number, revision,
+attempt) then answers "give me the latest" with a native
+`order: "desc", limit: 1` query.
+
+The property must be typed as (or extend) an unsigned integer scalar
+(`uint8`, `uint16`, `uint32`, `uint64`); a signed or non-integer type is a
+compile-time error, because a negative value still sorts after every positive
+one. So is a property whose name is itself an index key field such as `sk`,
+which ElectroDB would otherwise reject at runtime.
+
+```typespec
+@entity("tradeEvent", "trading")
+@index("events", {
+    pk: [TradeEvent.tradeId],
+    sk: [TradeEvent.eventSequence],
+})
+model TradeEvent {
+    tradeId: string;
+
+    @label("seq")
+    @padded(10)
+    eventSequence: uint32;
+}
+```
+
+```typescript
+// Composes sk = "$tradeevent_1#seq_0000000010"; the item stores eventSequence: 10
+await TradeEventEntity.put({ tradeId: "T1", eventSequence: 10 }).go();
+
+// Latest event for a trade, sorted numerically:
+await TradeEventEntity.query.events({ tradeId: "T1" }).go({ order: "desc", limit: 1 });
+```
+
+The facet prefix (`seq` above) is the attribute name, or `@label` when set,
+exactly as for any other key facet. The pad character is fixed to `"0"`, the
+only choice that keeps digits sorting as digits.
+
+Unlike `@semanticVersion`, padding is applied in ElectroDB's key composition,
+which runs for reads as well as writes, so `get`, `query`, and `delete` take
+the raw number and need no `prepareQuery` step.
+
+A value wider than `length` digits is a write-time error. ElectroDB would
+otherwise store it unpadded, where it sorts against padded keys as though it
+were smaller, so the emitted `validate` bounds the attribute to
+`0..10^length - 1`. A tighter explicit `@maxValue` still wins.
 
 ## Model base classes (opt-in)
 

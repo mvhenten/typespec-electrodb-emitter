@@ -197,6 +197,7 @@ interface ValidationConstraints {
 	maxValue?: number;
 	pattern?: string;
 	format?: string;
+	exclusiveMaxValue?: number;
 	isInteger?: boolean;
 	isFloat?: boolean;
 	isDateTime?: boolean;
@@ -236,6 +237,11 @@ function buildValidationFunction(
 	if (constraints.maxValue !== undefined) {
 		checks.push(
 			`if (typeof value === "number" && value > ${constraints.maxValue}) return "'${propertyName}' must be at most ${constraints.maxValue}"`,
+		);
+	}
+	if (constraints.exclusiveMaxValue !== undefined) {
+		checks.push(
+			`if (typeof value === "number" && value >= ${constraints.exclusiveMaxValue}) return "'${propertyName}' must be less than ${constraints.exclusiveMaxValue}"`,
 		);
 	}
 
@@ -719,8 +725,20 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 		}
 	}
 
-	// Add validation if constraints are present
 	const constraints = getValidationConstraints(ctx, prop);
+
+	const paddedLength = ctx.program.stateMap(StateKeys.padded).get(prop);
+	if (paddedLength !== undefined) {
+		assert(attr.type === "number", "@padded must be a number");
+
+		constraints.minValue = Math.max(constraints.minValue ?? 0, 0);
+		constraints.exclusiveMaxValue = 10 ** paddedLength;
+
+		// @ts-expect-error - padding is a valid ElectroDB attribute property
+		attr.padding = { length: paddedLength, char: "0" };
+	}
+
+	// Add validation if constraints are present
 	const validateFn = buildValidationFunction(constraints, prop.name);
 	if (validateFn) {
 		// @ts-expect-error - validate is a valid ElectroDB attribute property
@@ -962,6 +980,36 @@ async function emitModelBaseFiles(
 	return exportsEntries;
 }
 
+interface IndexKeyFields {
+	pk?: { field?: string };
+	sk?: { field?: string };
+}
+
+function reportPaddedIndexFields(
+	ctx: EmitContext,
+	model: Model,
+	indexes: Record<string, IndexKeyFields>,
+) {
+	const padded = ctx.program.stateMap(StateKeys.padded);
+
+	for (const [index, keys] of Object.entries(indexes)) {
+		for (const keyType of ["pk", "sk"] as const) {
+			const field = keys[keyType]?.field;
+			if (field === undefined) continue;
+
+			for (const prop of model.properties.values()) {
+				if (prop.name !== field || !padded.has(prop)) continue;
+
+				reportDiagnostic(ctx.program, {
+					code: "padded-on-index-field",
+					target: prop,
+					format: { name: prop.name, keyType, index },
+				});
+			}
+		}
+	}
+}
+
 export async function $onEmit(context: EmitContext) {
 	const packageName = context.options["package-name"];
 	const packageVersion = context.options["package-version"];
@@ -976,10 +1024,12 @@ export async function $onEmit(context: EmitContext) {
 		isModel(model);
 
 		const attributes = emitEntity(context, model);
+		const indexes = context.program.stateMap(StateKeys.index).get(model) ?? {};
+		reportPaddedIndexFields(context, model, indexes);
 
 		entities[model.name] = {
 			attributes,
-			indexes: context.program.stateMap(StateKeys.index).get(model) ?? {},
+			indexes,
 			model: {
 				entity: props.entity,
 				service: props.service,

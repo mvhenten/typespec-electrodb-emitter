@@ -256,6 +256,38 @@ model ProductRelease {
     releaseNotes?: string;
 }
 
+@entity("tradeEvent", "trading")
+@index(
+    "events",
+    {
+        pk: [TradeEvent.tradeId],
+        sk: [TradeEvent.eventSequence],
+    }
+)
+@index(
+    "attempts",
+    {
+        index: "gsi1",
+        pk: [TradeEvent.tradeId],
+        sk: [TradeEvent.attempt],
+    }
+)
+model TradeEvent {
+    tradeId: string;
+
+    @label("seq")
+    @padded(10)
+    eventSequence: uint32;
+
+    @padded(4)
+    attempt: uint8;
+
+    @padded(20)
+    ordinal?: uint64;
+
+    payload?: string;
+}
+
 // Regression for issue #45: an enum array ("set" attribute) must accept an
 // empty array on write. DynamoDB rejects empty Sets, so the emitted attribute
 // needs a `set` transform that drops the attribute when the array is empty.

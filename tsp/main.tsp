@@ -81,6 +81,13 @@ scalar SemanticVersion extends string;
 extern dec semanticVersion(target: ModelProperty);
 
 /**
+ * Zero-pads an unsigned integer key facet to `length` digits so it sorts
+ * numerically. Emits ElectroDB's `padding: { length, char: "0" }`.
+ * See https://electrodb.dev/en/modeling/attributes/#padding
+ */
+extern dec padded(target: ModelProperty, length: valueof uint8);
+
+/**
  * Define an ElectroDB index. See https://electrodb.dev/en/modeling/indexes/
  *
  * Use either shorthand definition:
