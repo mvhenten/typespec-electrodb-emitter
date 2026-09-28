@@ -81,6 +81,25 @@ scalar SemanticVersion extends string;
 extern dec semanticVersion(target: ModelProperty);
 
 /**
+ * Zero-pads an unsigned integer inside every key it is composed into, so a
+ * numeric sort key sorts numerically under DynamoDB's byte-lexicographic
+ * comparison (`9` before `10` before `100`). The stored attribute stays a
+ * number; only the key facet is padded, on writes and reads alike, so no
+ * `prepareQuery` step is needed.
+ *
+ * Emits ElectroDB's `padding: { length, char: "0" }` on the attribute, plus a
+ * `validate` that rejects a value wider than `length` digits at write time:
+ * ElectroDB would otherwise store it unpadded, where it sorts as though it
+ * were smaller than every padded value.
+ *
+ * The property must be typed as (or extend) an unsigned integer scalar. Its
+ * name must not equal an index key field such as `sk`, which ElectroDB
+ * rejects at runtime. The facet prefix in the key is the attribute name, or
+ * `@label` when set.
+ */
+extern dec padded(target: ModelProperty, length: valueof uint8);
+
+/**
  * Define an ElectroDB index. See https://electrodb.dev/en/modeling/indexes/
  *
  * Use either shorthand definition:

@@ -70,6 +70,22 @@ export const $lib = createTypeSpecLibrary({
 					"@semanticVersion can only be applied to a property typed as (or extending) a string matching the semantic version pattern, e.g. the `SemanticVersion` scalar exported by this library.",
 			},
 		},
+		"padded-invalid-type": {
+			severity: "error",
+			description: "The @padded decorator requires an unsigned integer type.",
+			messages: {
+				default:
+					"@padded can only be applied to a property typed as (or extending) an unsigned integer scalar (uint8, uint16, uint32, uint64). A signed value sorts after every positive one under DynamoDB's byte-lexicographic comparison, and a non-integer cannot be zero-padded.",
+			},
+		},
+		"padded-invalid-length": {
+			severity: "error",
+			description:
+				"The @padded decorator requires a length between 1 and 20 digits.",
+			messages: {
+				default: paramMessage`@padded length must be an integer between 1 and ${"maxLength"} (the digit count of the largest uint64), got ${"length"}.`,
+			},
+		},
 		"model-base-name-collision": {
 			severity: "error",
 			description:
@@ -89,6 +105,7 @@ export const $lib = createTypeSpecLibrary({
 		semanticVersion: {
 			description: "State for the @semanticVersion decorator",
 		},
+		padded: { description: "State for the @padded decorator" },
 	},
 	emitter: {
 		options: EmitterOptionsSchema,
