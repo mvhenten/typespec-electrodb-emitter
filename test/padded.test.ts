@@ -69,8 +69,6 @@ suite("@padded decorator", () => {
 		() => {
 			const TradeEventEntity = new Entity(TradeEvent, { table });
 
-			// The lexicographic trap: an unpadded sort puts "10" and "100" before
-			// "9" because '1' < '9' at the first byte.
 			const trapSequences = [9, 100, 10];
 
 			test("an ascending range query returns numeric order, not lexicographic order", () => {
@@ -83,8 +81,6 @@ suite("@padded decorator", () => {
 						}).params().Item,
 				);
 
-				// DynamoDB's default ScanIndexForward:true is an ascending
-				// byte-lexicographic sort of the sort key — simulate it here.
 				const ascendingBySortKey = [...items].sort((a, b) =>
 					a.sk < b.sk ? -1 : a.sk > b.sk ? 1 : 0,
 				);
@@ -100,9 +96,6 @@ suite("@padded decorator", () => {
 		},
 	);
 
-	// Unlike @semanticVersion (issue #52), padding is applied in ElectroDB's
-	// key composition, which runs for reads as well as writes, so a raw number
-	// addresses the row that was written without any prepareQuery step.
 	suite("read path", () => {
 		const TradeEventEntity = new Entity(TradeEvent, { table });
 
@@ -138,9 +131,6 @@ suite("@padded decorator", () => {
 		});
 	});
 
-	// ElectroDB leaves an overflowing value unpadded, where it sorts against
-	// padded keys as though it were smaller ("12345" < "0007"), so the
-	// emitted validate turns it into a write-time error instead.
 	suite("overflow guard", () => {
 		const TradeEventEntity = new Entity(TradeEvent, { table });
 

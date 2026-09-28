@@ -6,10 +6,6 @@ import type {
 } from "@typespec/compiler";
 import { reportDiagnostic, StateKeys } from "../lib.js";
 
-/**
- * Digit count of the largest uint64 (18446744073709551615). A pad wider than
- * this can never be filled by a value the type admits.
- */
 export const MAX_PADDED_LENGTH = 20;
 
 const UNSIGNED_INTEGER_SCALARS = new Set([
@@ -19,11 +15,6 @@ const UNSIGNED_INTEGER_SCALARS = new Set([
 	"uint64",
 ]);
 
-/**
- * Only unsigned integers are eligible: zero-padding makes `9` sort before
- * `10`, but a negative value still sorts after every positive one because
- * `-` precedes the digits, and a fractional value has no fixed digit count.
- */
 function isUnsignedIntegerType(type: Type): boolean {
 	if (type.kind !== "Scalar") return false;
 

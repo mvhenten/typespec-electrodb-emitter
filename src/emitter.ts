@@ -721,11 +721,6 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 
 	const constraints = getValidationConstraints(ctx, prop);
 
-	// @padded: ElectroDB pads the facet inside every composed key (reads and
-	// writes alike), so only the option is passed through. A value wider than
-	// the pad would be stored unpadded and sort as though it were smaller, so
-	// the pad width also bounds the value at write time; a tighter explicit
-	// @maxValue still wins.
 	const paddedLength = ctx.program.stateMap(StateKeys.padded).get(prop);
 	if (paddedLength !== undefined) {
 		assert(attr.type === "number", "@padded must be a number");
@@ -988,12 +983,6 @@ interface IndexKeyFields {
 	sk?: { field?: string };
 }
 
-/**
- * ElectroDB throws at entity construction when a padded attribute's name is
- * also an index key field (`sk`, `gsi1pk`, ...), because the attribute then
- * *is* the key rather than a facet composed into it. `@index` runs after the
- * property decorators, so the collision can only be seen here.
- */
 function reportPaddedIndexFields(
 	ctx: EmitContext,
 	model: Model,

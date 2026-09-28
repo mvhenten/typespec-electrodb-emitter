@@ -3,10 +3,6 @@ import { execFileSync } from "node:child_process";
 
 const tspBin = new URL("../node_modules/.bin/tsp", import.meta.url).pathname;
 
-/**
- * Compiles a TypeSpec fixture that is expected to fail and returns its
- * combined stdout/stderr, so a test can assert on the diagnostic text.
- */
 export function compileFixtureExpectingFailure(fixturePath: string): string {
 	let combinedOutput = "";
 

@@ -256,12 +256,6 @@ model ProductRelease {
     releaseNotes?: string;
 }
 
-// @padded on a numeric sort key (issue #60): DynamoDB compares sort keys
-// byte-lexicographically, so a raw integer sorts wrong past one digit
-// ("10" < "9"). ElectroDB pads the key facet on writes and reads alike while
-// the stored attribute stays a number. `eventSequence` carries a @label to
-// pin the facet prefix; `attempt` uses the default (attribute name) prefix
-// and a narrow pad so the overflow guard is cheap to hit.
 @entity("tradeEvent", "trading")
 @index(
     "events",
