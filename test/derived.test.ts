@@ -96,8 +96,8 @@ suite("@derived decorator", () => {
 
 		// Documents ElectroDB behaviour rather than endorsing it: with the source
 		// absent but another index composite present, the key is still written
-		// with an empty facet, so the index is not sparse. Give the index a
-		// `condition`, or make the source required, where that matters.
+		// with an empty facet, so the index is not sparse. Make the source
+		// required where that matters.
 		test("a put without the source writes an empty facet when another composite is present", () => {
 			const item = ShipmentEntity.put({
 				shipmentId: "S1",
@@ -154,6 +154,21 @@ suite("@derived compile-time diagnostics", () => {
 		assert.match(output, /myLibrary\/derived-conflicting-value/);
 		assert.match(output, /conflicts with a default value/);
 	});
+
+	for (const [fixture, decorator] of [
+		["derived-with-created-at", "@createdAt"],
+		["derived-with-updated-at", "@updatedAt"],
+		["derived-with-semantic-version", "@semanticVersion"],
+	]) {
+		test(`a target with ${decorator} is a diagnostic, not an emitter crash`, () => {
+			const output = compileFixtureExpectingFailure(
+				`test/fixtures/${fixture}.tsp`,
+			);
+			assert.match(output, /myLibrary\/derived-conflicting-value/);
+			assert.match(output, new RegExp(`conflicts with ${decorator}`));
+			assert.doesNotMatch(output, /AssertionError/);
+		});
+	}
 
 	test("a source that is itself derived is a compile-time error", () => {
 		const output = compileFixtureExpectingFailure(

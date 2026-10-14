@@ -781,7 +781,7 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 		attr.watch = [source];
 		// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
 		attr.set = new RawCode(
-			`(_, item) => item${propertyAccess(source)}?${propertyAccess(derived.path.name)}`,
+			`(_, item) => item${propertyAccess(source)}${optionalPropertyAccess(derived.path.name)}`,
 		);
 	}
 
@@ -800,9 +800,16 @@ function getDerived(
  * `["name"]` otherwise, so any TypeSpec property name stays valid JavaScript.
  */
 function propertyAccess(name: string): string {
-	return /^[A-Za-z_$][\w$]*$/.test(name)
-		? `.${name}`
-		: `[${JSON.stringify(name)}]`;
+	return isIdentifier(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
+}
+
+/** Optional-chaining form of `propertyAccess`: `?.name` or `?.["name"]`. */
+function optionalPropertyAccess(name: string): string {
+	return isIdentifier(name) ? `?.${name}` : `?.[${JSON.stringify(name)}]`;
+}
+
+function isIdentifier(name: string): boolean {
+	return /^[A-Za-z_$][\w$]*$/.test(name);
 }
 
 function emitEntity(ctx: EmitContext, model: Model) {
@@ -1131,15 +1138,28 @@ export async function $onEmit(context: EmitContext) {
 	const entities: Record<string, Schema<any, any, any>> = {};
 	const entityModels: Model[] = [];
 
-	for (const [model, props] of context.program
-		.stateMap(StateKeys.electroEntity)
-		.entries()) {
+	const entityEntries = [
+		...context.program.stateMap(StateKeys.electroEntity).entries(),
+	];
+
+	// Validate every entity before emitting any attribute: a conflicting
+	// decorator pair (e.g. @derived with @createdAt on a string) would
+	// otherwise trip an emitAttribute assertion before its diagnostic lands.
+	for (const [model] of entityEntries) {
+		isModel(model);
+
+		const indexes = context.program.stateMap(StateKeys.index).get(model) ?? {};
+		reportPaddedIndexFields(context, model, indexes);
+		reportDerivedConflicts(context, model);
+	}
+
+	if (context.program.hasError()) return;
+
+	for (const [model, props] of entityEntries) {
 		isModel(model);
 
 		const attributes = emitEntity(context, model);
 		const indexes = context.program.stateMap(StateKeys.index).get(model) ?? {};
-		reportPaddedIndexFields(context, model, indexes);
-		reportDerivedConflicts(context, model);
 
 		entities[model.name] = {
 			attributes,

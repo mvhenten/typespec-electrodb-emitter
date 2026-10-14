@@ -245,8 +245,9 @@ The following are compile-time errors:
 
 An absent source does not make the index sparse. When another composite of
 the same index is present, ElectroDB still writes the key with an empty facet
-(`$logistics#warehousecode_`). Give the index a `condition`, or make the
-source required, if un-keyed items must stay out of it.
+(`$logistics#warehousecode_`). Make the source required if every item must
+carry a real key. `@index` does not pass ElectroDB's `condition` through yet,
+so a conditionally sparse index is not available from this library.
 
 ## Model base classes (opt-in)
 
