@@ -309,3 +309,35 @@ model Pet {
     name: string;
     tags: PetTag[];
 }
+
+// @derived: a key facet must be a top-level scalar, so a nested map value
+// keys an index through a hidden copy that every write recomputes.
+model WarehouseLink {
+    code: string;
+    kind: string;
+}
+
+@entity("shipment", "logistics")
+@index(
+    "shipments",
+    {
+        pk: [Shipment.shipmentId],
+    }
+)
+@index(
+    "byWarehouse",
+    {
+        index: "gsi1",
+        pk: [Shipment.warehouseCode],
+        sk: [Shipment.status],
+    }
+)
+model Shipment {
+    shipmentId: string;
+    status?: string;
+    warehouse?: WarehouseLink;
+
+    @derived(Shipment.warehouse, "code")
+    @maxLength(64)
+    warehouseCode?: string;
+}

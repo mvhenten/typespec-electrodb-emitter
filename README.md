@@ -62,6 +62,7 @@ Annotate models with `@entity` and `@index`, and properties with the rest.
 | `@updatedAt(label?)` | property | Managed [updated-at](https://electrodb.dev/en/recipes/created-at-updated-at/) timestamp. |
 | `@semanticVersion` | property | Stores a semver sort key that sorts correctly. |
 | `@padded(length)` | property | Zero-pads an unsigned integer key facet so it sorts numerically. |
+| `@derived(source, path)` | property | Stores a hidden copy of a map attribute's property so it can key an index. |
 
 `@index` takes a shorthand (`{ pk: [Model.id] }`) or a full access pattern with
 `index`, `collection`, `scope`, `pk`, and `sk`. See
@@ -175,6 +176,78 @@ A value wider than `length` digits is a write-time error. ElectroDB would
 otherwise store it unpadded, where it sorts against padded keys as though it
 were smaller, so the emitted `validate` bounds the attribute to
 `0..10^length - 1`. A tighter explicit `@maxValue` still wins.
+
+### `@derived(source, path)`
+
+ElectroDB key facets must be top-level string, number, boolean or enum
+attributes, and `@index` takes direct properties of the entity, so an index
+cannot key on a property nested inside a map attribute. `@derived` stores a
+copy of `source.<path>` in a top-level property and emits it as an ElectroDB
+[calculated attribute](https://electrodb.dev/en/recipes/composite-attributes/):
+
+```typespec
+model WarehouseLink {
+    code: string;
+    kind: string;
+}
+
+@entity("shipment", "logistics")
+@index("shipments", { pk: [Shipment.shipmentId] })
+@index("byWarehouse", {
+    index: "gsi1",
+    pk: [Shipment.warehouseCode],
+    sk: [Shipment.status],
+})
+model Shipment {
+    shipmentId: string;
+    status?: string;
+    warehouse?: WarehouseLink;
+
+    @derived(Shipment.warehouse, "code")
+    warehouseCode?: string;
+}
+```
+
+```typescript
+// Emitted attribute:
+warehouseCode: {
+    type: "string",
+    hidden: true,
+    watch: ["warehouse"],
+    set: (_, item) => item.warehouse?.code,
+}
+```
+
+Every `put`, `create`, `update` or `patch` that touches the source recomputes
+the copy, and a value written to the copy directly is discarded. `hidden`
+keeps it out of read results, while it remains a query input:
+
+```typescript
+await ShipmentEntity.put({ shipmentId: "S1", status: "open", warehouse: { code: "ams", kind: "warehouse" } }).go();
+await ShipmentEntity.query.byWarehouse({ warehouseCode: "ams" }).go();
+```
+
+To keep the copy off an API surface too, pair it with
+`@invisible(Lifecycle)` from TypeSpec's visibility system. The stored
+attribute keeps its name either way, so converting an existing property to
+`@derived` needs no data migration.
+
+The following are compile-time errors:
+
+- the target is required (ElectroDB checks `required` before computing the
+  value, so a required calculated attribute rejects every write);
+- the source is a property of another model;
+- the source is not a model (an array, a record or a scalar);
+- the path is not a property of the source;
+- the path's emitted ElectroDB type differs from the target's;
+- the target has a default, `@createdAt`, `@updatedAt` or `@semanticVersion`;
+- the source is itself `@derived` (ElectroDB cannot watch a watcher).
+
+An absent source does not make the index sparse. When another composite of
+the same index is present, ElectroDB still writes the key with an empty facet
+(`$logistics#warehousecode_`). Make the source required if every item must
+carry a real key. `@index` does not pass ElectroDB's `condition` through yet,
+so a conditionally sparse index is not available from this library.
 
 ## Model base classes (opt-in)
 
