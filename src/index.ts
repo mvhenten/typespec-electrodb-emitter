@@ -1,4 +1,5 @@
 export * from "./decorators/$createdAt.js";
+export * from "./decorators/$derived.js";
 export * from "./decorators/$entity.js";
 export * from "./decorators/$index.js";
 export * from "./decorators/$label.js";

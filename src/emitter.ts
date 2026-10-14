@@ -26,6 +26,7 @@ import {
 import type { Attribute, CustomAttribute, Schema } from "electrodb";
 import * as ts from "typescript";
 
+import type { DerivedSource } from "./decorators/$derived.js";
 import { type ModelBaseOptions, reportDiagnostic, StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
 
@@ -767,7 +768,41 @@ function emitAttribute(ctx: EmitContext, prop: ModelProperty): Attribute {
 		};
 	}
 
+	const derived = getDerived(ctx, prop);
+	if (derived) {
+		const source = derived.source.name;
+
+		// ElectroDB's calculated-attribute recipe: recompute on every write that
+		// touches the source, and keep the stored copy out of read results.
+		// See https://electrodb.dev/en/recipes/composite-attributes/
+		// @ts-expect-error - hidden is a valid ElectroDB attribute property
+		attr.hidden = true;
+		// @ts-expect-error - watch is a valid ElectroDB attribute property
+		attr.watch = [source];
+		// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
+		attr.set = new RawCode(
+			`(_, item) => item${propertyAccess(source)}?${propertyAccess(derived.path.name)}`,
+		);
+	}
+
 	return attr;
+}
+
+function getDerived(
+	ctx: EmitContext,
+	prop: ModelProperty,
+): DerivedSource | undefined {
+	return ctx.program.stateMap(StateKeys.derived).get(prop);
+}
+
+/**
+ * Member access for a generated `set` body: `.name` for a plain identifier,
+ * `["name"]` otherwise, so any TypeSpec property name stays valid JavaScript.
+ */
+function propertyAccess(name: string): string {
+	return /^[A-Za-z_$][\w$]*$/.test(name)
+		? `.${name}`
+		: `[${JSON.stringify(name)}]`;
 }
 
 function emitEntity(ctx: EmitContext, model: Model) {
@@ -1010,6 +1045,84 @@ function reportPaddedIndexFields(
 	}
 }
 
+/**
+ * Compares two emitted attribute types structurally. RawCode (custom union
+ * types) has no enumerable shape of its own, so its source text stands in.
+ */
+function emittedTypeKey(attr: Attribute): string {
+	return JSON.stringify(attr, (_, value) =>
+		value instanceof RawCode
+			? value.code
+			: typeof value === "function"
+				? value.toString()
+				: value,
+	);
+}
+
+/**
+ * Checks for `@derived` that need every decorator applied first, so they
+ * cannot run inside the decorator itself.
+ */
+function reportDerivedConflicts(ctx: EmitContext, model: Model) {
+	const { program } = ctx;
+
+	for (const prop of model.properties.values()) {
+		const derived = getDerived(ctx, prop);
+		if (!derived) continue;
+
+		const { source, path } = derived;
+
+		if (source.model !== model) {
+			reportDiagnostic(program, {
+				code: "derived-foreign-source",
+				target: prop,
+				format: { name: prop.name, source: source.name },
+			});
+			continue;
+		}
+
+		if (getDerived(ctx, source)) {
+			reportDiagnostic(program, {
+				code: "derived-from-derived",
+				target: prop,
+				format: { name: prop.name, source: source.name },
+			});
+		}
+
+		const sourceType = emittedTypeKey(emitType(path.type));
+		const targetType = emittedTypeKey(emitType(prop.type));
+		if (sourceType !== targetType) {
+			reportDiagnostic(program, {
+				code: "derived-type-mismatch",
+				target: prop,
+				format: {
+					name: prop.name,
+					source: source.name,
+					path: path.name,
+					sourceType,
+					targetType,
+				},
+			});
+		}
+
+		const conflicts = [
+			prop.defaultValue && "a default value",
+			program.stateMap(StateKeys.createdAt).has(prop) && "@createdAt",
+			program.stateMap(StateKeys.updatedAt).has(prop) && "@updatedAt",
+			program.stateSet(StateKeys.semanticVersion).has(prop) &&
+				"@semanticVersion",
+		].filter((conflict): conflict is string => Boolean(conflict));
+
+		for (const conflict of conflicts) {
+			reportDiagnostic(program, {
+				code: "derived-conflicting-value",
+				target: prop,
+				format: { name: prop.name, conflict },
+			});
+		}
+	}
+}
+
 export async function $onEmit(context: EmitContext) {
 	const packageName = context.options["package-name"];
 	const packageVersion = context.options["package-version"];
@@ -1026,6 +1139,7 @@ export async function $onEmit(context: EmitContext) {
 		const attributes = emitEntity(context, model);
 		const indexes = context.program.stateMap(StateKeys.index).get(model) ?? {};
 		reportPaddedIndexFields(context, model, indexes);
+		reportDerivedConflicts(context, model);
 
 		entities[model.name] = {
 			attributes,

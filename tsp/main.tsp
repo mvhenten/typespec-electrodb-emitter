@@ -88,6 +88,28 @@ extern dec semanticVersion(target: ModelProperty);
 extern dec padded(target: ModelProperty, length: valueof uint8);
 
 /**
+ * Stores a copy of `source.<path>` in the target property, so a nested value
+ * can key an index. ElectroDB key facets must be top-level scalar attributes,
+ * so `@index` cannot address a property of a map attribute directly.
+ *
+ * Emits an ElectroDB calculated attribute: `watch: [source]` with a `set` that
+ * reads `source?.<path>`, and `hidden: true` so reads never return the copy.
+ * Every write that touches the source recomputes the target; a value written
+ * to the target directly is discarded.
+ * See https://electrodb.dev/en/recipes/composite-attributes/
+ *
+ * The source must be a model-typed property of the same entity, the path a
+ * property of that model with the same emitted type as the target. The target
+ * cannot carry a default, `@createdAt`, `@updatedAt` or `@semanticVersion`,
+ * and the source cannot itself be `@derived`.
+ */
+extern dec derived(
+    target: ModelProperty,
+    source: ModelProperty,
+    path: valueof string
+);
+
+/**
  * Define an ElectroDB index. See https://electrodb.dev/en/modeling/indexes/
  *
  * Use either shorthand definition:

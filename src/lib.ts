@@ -94,6 +94,58 @@ export const $lib = createTypeSpecLibrary({
 				default: paramMessage`@padded cannot be applied to '${"name"}' because it is the '${"keyType"}' key field of index '${"index"}'. ElectroDB does not support padding on an attribute that is also a table index field; rename the property or compose it into the key instead.`,
 			},
 		},
+		"derived-required-target": {
+			severity: "error",
+			description: "The @derived target must be optional.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' requires an optional property. ElectroDB checks a required attribute against the write payload before computing it, so a required derived attribute rejects every write.`,
+			},
+		},
+		"derived-foreign-source": {
+			severity: "error",
+			description: "The @derived source must be a property of the same entity.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' must name a property of the same model as its source, got '${"source"}'. ElectroDB can only watch attributes of the entity it computes.`,
+			},
+		},
+		"derived-source-not-map": {
+			severity: "error",
+			description: "The @derived source must be a map-typed property.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' needs a source typed as a model (an ElectroDB map), but '${"source"}' is not. Arrays, records and scalars have no named property for the path to read.`,
+			},
+		},
+		"derived-unknown-path": {
+			severity: "error",
+			description:
+				"The @derived path must name a property of the source model.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' reads '${"path"}' from '${"source"}', but '${"source"}' has no property named '${"path"}'.`,
+			},
+		},
+		"derived-type-mismatch": {
+			severity: "error",
+			description:
+				"The @derived target must have the same ElectroDB type as the property it copies.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' copies '${"source"}.${"path"}', which emits as ElectroDB type ${"sourceType"}, into an attribute of type ${"targetType"}. Give both the same type.`,
+			},
+		},
+		"derived-conflicting-value": {
+			severity: "error",
+			description:
+				"A @derived property cannot also have a default or another computed value.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' conflicts with ${"conflict"}. A derived attribute takes its value only from its source.`,
+			},
+		},
+		"derived-from-derived": {
+			severity: "error",
+			description: "The @derived source cannot itself be derived.",
+			messages: {
+				default: paramMessage`@derived on '${"name"}' reads '${"source"}', which is itself derived. ElectroDB cannot watch an attribute that watches another, so derive both from the original source.`,
+			},
+		},
 		"model-base-name-collision": {
 			severity: "error",
 			description:
@@ -114,6 +166,7 @@ export const $lib = createTypeSpecLibrary({
 			description: "State for the @semanticVersion decorator",
 		},
 		padded: { description: "State for the @padded decorator" },
+		derived: { description: "State for the @derived decorator" },
 	},
 	emitter: {
 		options: EmitterOptionsSchema,
