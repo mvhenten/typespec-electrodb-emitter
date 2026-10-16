@@ -342,10 +342,6 @@ model Shipment {
     warehouseCode?: string;
 }
 
-// Regression for issue #58: `type: IndexType.clustered` is an EnumMember, which
-// the access-pattern reader dropped, so every index emitted as isolated. A
-// clustered collection interleaves its entities by sort key, so one query reads
-// an account's postings in time order across both entity types.
 @entity("deposit", "ledger")
 @index(
     "deposits",

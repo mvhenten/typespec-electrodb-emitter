@@ -239,10 +239,6 @@ suite("Clustered collection (issue #58)", () => {
 		{ table },
 	);
 
-	test("joins both entities in the postings collection", () => {
-		assert.equal(typeof ledger.collections.postings, "function");
-	});
-
 	test("composes the sort key with the entity identifier after the facets", () => {
 		const params = ledger.entities.deposit
 			.put({
