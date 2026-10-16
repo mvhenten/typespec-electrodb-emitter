@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import { suite, test } from "node:test";
 import {
 	CreditLimit,
+	Deposit,
 	Document,
 	Job,
 	Person,
 	Task,
+	Withdrawal,
 } from "../build/entities/index.mjs";
 
 suite("Job Entity", () => {
@@ -573,6 +575,39 @@ suite("Open Record types (Record<T>)", () => {
 			type: ["NL", "US", "DE"],
 			required: true,
 		});
+	});
+});
+
+suite("Index type (issue #58)", () => {
+	// `type: IndexType.clustered` reaches the decorator as an EnumMember. The
+	// reader accepted string literals only, so the option was dropped and every
+	// index emitted as isolated.
+	test("a clustered collection carries type clustered on each member", () => {
+		for (const entity of [Deposit, Withdrawal]) {
+			const byAccount = entity.indexes.byAccount;
+			assert.equal(byAccount.index, "gsi2");
+			assert.equal(byAccount.collection, "postings");
+			assert.equal(byAccount.type, "clustered");
+		}
+	});
+
+	test("members keep their own sort key composite after the shared facet", () => {
+		assert.deepEqual(Deposit.indexes.byAccount.sk, {
+			field: "gsi2sk",
+			composite: ["postedAt", "depositId"],
+		});
+		assert.deepEqual(Withdrawal.indexes.byAccount.sk, {
+			field: "gsi2sk",
+			composite: ["postedAt", "withdrawalId"],
+		});
+	});
+
+	test("an explicit isolated type is emitted", () => {
+		assert.equal(Withdrawal.indexes.withdrawals.type, "isolated");
+	});
+
+	test("an index without a type emits none, leaving ElectroDB's default", () => {
+		assert.equal("type" in Deposit.indexes.deposits, false);
 	});
 });
 
