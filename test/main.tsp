@@ -341,3 +341,56 @@ model Shipment {
     @maxLength(64)
     warehouseCode?: string;
 }
+
+// Regression for issue #58: `type: IndexType.clustered` is an EnumMember, which
+// the access-pattern reader dropped, so every index emitted as isolated. A
+// clustered collection interleaves its entities by sort key, so one query reads
+// an account's postings in time order across both entity types.
+@entity("deposit", "ledger")
+@index(
+    "deposits",
+    {
+        pk: [Deposit.depositId],
+    }
+)
+@index(
+    "byAccount",
+    {
+        index: "gsi2",
+        collection: "postings",
+        type: IndexType.clustered,
+        pk: [Deposit.accountId],
+        sk: [Deposit.postedAt, Deposit.depositId],
+    }
+)
+model Deposit {
+    depositId: UUID;
+    accountId: UUID;
+    postedAt: string;
+    amount: string;
+}
+
+@entity("withdrawal", "ledger")
+@index(
+    "withdrawals",
+    {
+        type: IndexType.isolated,
+        pk: [Withdrawal.withdrawalId],
+    }
+)
+@index(
+    "byAccount",
+    {
+        index: "gsi2",
+        collection: "postings",
+        type: IndexType.clustered,
+        pk: [Withdrawal.accountId],
+        sk: [Withdrawal.postedAt, Withdrawal.withdrawalId],
+    }
+)
+model Withdrawal {
+    withdrawalId: UUID;
+    accountId: UUID;
+    postedAt: string;
+    amount: string;
+}

@@ -65,8 +65,12 @@ Annotate models with `@entity` and `@index`, and properties with the rest.
 | `@derived(source, path)` | property | Stores a hidden copy of a map attribute's property so it can key an index. |
 
 `@index` takes a shorthand (`{ pk: [Model.id] }`) or a full access pattern with
-`index`, `collection`, `scope`, `pk`, and `sk`. See
-[`tsp/main.tsp`](./tsp/main.tsp) for the full signatures.
+`index`, `collection`, `scope`, `type`, `pk`, and `sk`. `type` is
+`IndexType.isolated` (the default) or `IndexType.clustered`, ElectroDB's
+[index types](https://electrodb.dev/en/modeling/indexes/): a clustered
+collection sorts its member entities together by sort key, so one query reads
+them as one timeline. See [`tsp/main.tsp`](./tsp/main.tsp) for the full
+signatures.
 
 ### `@semanticVersion`
 

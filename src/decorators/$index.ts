@@ -56,6 +56,9 @@ const getStringValue = (source: Model, name: string) => {
 			switch (prop.type.kind) {
 				case "String":
 					return prop.type.value;
+				// `type: IndexType.clustered` resolves to an EnumMember, not a string (#58).
+				case "EnumMember":
+					return String(prop.type.value ?? prop.type.name);
 			}
 		}
 	}

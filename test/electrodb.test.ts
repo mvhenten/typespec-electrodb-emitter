@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { suite, test } from "node:test";
 import { Entity, Service } from "electrodb";
-import { Job, Person, Pet, Task } from "../build/entities/index.mjs";
+import {
+	Deposit,
+	Job,
+	Person,
+	Pet,
+	Task,
+	Withdrawal,
+} from "../build/entities/index.mjs";
 
 const table = "test-table";
 
@@ -220,5 +227,39 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 
 		assert.ok(params.Item);
 		assert.deepEqual([...params.Item.tags.values].sort(), ["01", "02"]);
+	});
+});
+
+suite("Clustered collection (issue #58)", () => {
+	const ledger = new Service(
+		{
+			deposit: new Entity(Deposit, { table }),
+			withdrawal: new Entity(Withdrawal, { table }),
+		},
+		{ table },
+	);
+
+	test("joins both entities in the postings collection", () => {
+		assert.equal(typeof ledger.collections.postings, "function");
+	});
+
+	test("composes the sort key with the entity identifier after the facets", () => {
+		const params = ledger.entities.deposit
+			.put({
+				depositId: "1234567890123456789012345",
+				accountId: "0000000000000000000000001",
+				postedAt: "2026-01-02T03:04:05.000Z",
+				amount: "10.00",
+			})
+			.params();
+
+		assert.equal(
+			params.Item.gsi2pk,
+			"$ledger#accountid_0000000000000000000000001",
+		);
+		assert.equal(
+			params.Item.gsi2sk,
+			"$postings#postedat_2026-01-02t03:04:05.000z#depositid_1234567890123456789012345#deposit_1",
+		);
 	});
 });
