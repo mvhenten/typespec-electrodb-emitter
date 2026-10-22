@@ -29,6 +29,7 @@ import * as ts from "typescript";
 import type { DerivedSource } from "./decorators/$derived.js";
 import { type ModelBaseOptions, reportDiagnostic, StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
+import { isVisibilityCopy } from "./visibility-copy.js";
 
 /**
  * Peer dependency range declared on the emitted entities package.
@@ -1140,7 +1141,7 @@ export async function $onEmit(context: EmitContext) {
 
 	const entityEntries = [
 		...context.program.stateMap(StateKeys.electroEntity).entries(),
-	];
+	].filter(([model]) => model.kind !== "Model" || !isVisibilityCopy(model));
 
 	// Validate every entity before emitting any attribute: a conflicting
 	// decorator pair (e.g. @derived with @createdAt on a string) would
