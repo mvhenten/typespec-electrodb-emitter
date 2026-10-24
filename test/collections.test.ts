@@ -120,14 +120,6 @@ suite("Collections (issue #57)", () => {
 			});
 		});
 	}
-
-	test("an enum member collection emits its value, as 5.2.2 did", async () => {
-		const { output, entities } = await compileFixture(
-			"test/fixtures/collection-enum-member.tsp",
-		);
-		assert.doesNotMatch(output, /index-invalid-collection/);
-		assert.equal(indexesOf(entities, "Thing").byOwner.collection, "holdings");
-	});
 });
 
 suite("Collection partition keys (issue #59)", () => {

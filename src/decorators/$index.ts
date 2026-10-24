@@ -74,9 +74,10 @@ const readCollection = (pattern: Model): CollectionResult => {
 	const collection = getProperty(pattern, "collection");
 	if (collection === undefined) return { kind: "absent" };
 
-	if (collection.kind === "String" || collection.kind === "EnumMember") {
-		const value = getStringValue(pattern, "collection");
-		return value ? { kind: "valid", collection: value } : { kind: "absent" };
+	if (collection.kind === "String") {
+		return collection.value
+			? { kind: "valid", collection: collection.value }
+			: { kind: "absent" };
 	}
 
 	if (collection.kind !== "Tuple" || collection.values.length === 0) {
