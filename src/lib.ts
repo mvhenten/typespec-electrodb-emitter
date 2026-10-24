@@ -154,6 +154,14 @@ export const $lib = createTypeSpecLibrary({
 				default: paramMessage`@index "${"name"}" has a collection that is not a string literal or a non-empty list of string literals. Use \`collection: "name"\` for one collection, or \`collection: ["parent", "child"]\` for a sub-collection, parent first.`,
 			},
 		},
+		"collection-partition-key-mismatch": {
+			severity: "error",
+			description:
+				"Every member of an ElectroDB collection must compose the same partition key on the same index.",
+			messages: {
+				default: paramMessage`@index "${"name"}" on ${"entity"} joins collection "${"collection"}" with ${"partitionKey"}, but ${"establishedEntity"} joins it through @index "${"establishedName"}" with ${"establishedPartitionKey"}. ElectroDB rejects the Service at runtime unless every member of a collection uses the same index, partition key field, composite attributes, composite labels and scope.`,
+			},
+		},
 		"model-base-name-collision": {
 			severity: "error",
 			description:

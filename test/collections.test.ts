@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { suite, test } from "node:test";
 import { Entity, Service } from "electrodb";
 import { Account, Contribution } from "../build/entities/index.mjs";
-import { compileFixtureExpectingFailure } from "./compile-fixture.js";
+import {
+	compileFixtureEntityNames,
+	compileFixtureExpectingFailure,
+} from "./compile-fixture.js";
 
 const table = "test-table";
 
@@ -97,6 +100,50 @@ suite("Collections (issue #57)", () => {
 			);
 			assert.match(output, /index-invalid-collection/);
 			assert.match(output, /@index "byOwner"/);
+		});
+	}
+});
+
+suite("Collection partition keys (issue #59)", () => {
+	test("members composing the same partition key and labels compile", async () => {
+		const names = await compileFixtureEntityNames(
+			"test/fixtures/collection-pk-match.tsp",
+		);
+		assert.deepEqual(names, ["Account", "Contribution"]);
+	});
+
+	for (const { fixture, pattern, entity, line } of [
+		{
+			fixture: "collection-pk-mismatch",
+			pattern: "byAccount",
+			entity: "Position",
+			line: 21,
+		},
+		{
+			fixture: "collection-pk-label-mismatch",
+			pattern: "byOwner",
+			entity: "Position",
+			line: 21,
+		},
+		{
+			fixture: "sub-collection-pk-mismatch",
+			pattern: "byAccount",
+			entity: "Contribution",
+			line: 21,
+		},
+	]) {
+		test(`${fixture} fails to compile at the offending @index`, () => {
+			const output = compileFixtureExpectingFailure(
+				`test/fixtures/${fixture}.tsp`,
+			);
+			assert.match(output, /collection-partition-key-mismatch/);
+			assert.match(
+				output,
+				new RegExp(
+					`@index "${pattern}" on ${entity} joins collection "holdings"`,
+				),
+			);
+			assert.match(output, new RegExp(`${fixture}\\.tsp\\S*:\\S*${line}\\S*:`));
 		});
 	}
 });
