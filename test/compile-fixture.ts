@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { basename } from "node:path";
 
 const tspBin = new URL("../node_modules/.bin/tsp", import.meta.url).pathname;
@@ -29,14 +29,19 @@ export function compileFixtureExpectingFailure(fixturePath: string): string {
 	return combinedOutput;
 }
 
-export async function compileFixtureEntityNames(
+export interface CompiledFixture {
+	output: string;
+	entities: Record<string, unknown>;
+}
+
+export async function compileFixture(
 	fixturePath: string,
-): Promise<string[]> {
+): Promise<CompiledFixture> {
 	const outputDir = new URL(
 		`../build/fixtures/${basename(fixturePath, ".tsp")}/`,
 		import.meta.url,
 	).pathname;
-	execFileSync(
+	const result = spawnSync(
 		tspBin,
 		[
 			"compile",
@@ -46,10 +51,20 @@ export async function compileFixtureEntityNames(
 			"--option",
 			`typespec-electrodb-emitter.emitter-output-dir=${outputDir}`,
 		],
-		{ stdio: "pipe" },
+		{ encoding: "utf8" },
 	);
+	const output = `${result.stdout}${result.stderr}`;
+	assert.equal(result.status, 0, output);
+
 	const entities: Record<string, unknown> = await import(
 		`${outputDir}index.mjs`
 	);
+	return { output, entities };
+}
+
+export async function compileFixtureEntityNames(
+	fixturePath: string,
+): Promise<string[]> {
+	const { entities } = await compileFixture(fixturePath);
 	return Object.keys(entities).sort();
 }

@@ -4,11 +4,23 @@ import { suite, test } from "node:test";
 import { Entity, Service } from "electrodb";
 import { Account, Contribution } from "../build/entities/index.mjs";
 import {
+	compileFixture,
 	compileFixtureEntityNames,
-	compileFixtureExpectingFailure,
 } from "./compile-fixture.js";
 
 const table = "test-table";
+
+interface EmittedIndex {
+	collection?: string | string[];
+}
+
+const indexesOf = (
+	entities: Record<string, unknown>,
+	model: string,
+): Record<string, EmittedIndex> => {
+	const schema = entities[model] as { indexes: Record<string, EmittedIndex> };
+	return schema.indexes;
+};
 
 const declarations = readFileSync(
 	new URL("../build/entities/index.d.ts", import.meta.url),
@@ -94,14 +106,28 @@ suite("Collections (issue #57)", () => {
 	});
 
 	for (const fixture of ["collection-empty", "collection-not-literal"]) {
-		test(`${fixture} fails to compile instead of dropping the collection`, () => {
-			const output = compileFixtureExpectingFailure(
+		test(`${fixture} warns and emits the index without a collection, as 5.2.2 did`, async () => {
+			const { output, entities } = await compileFixture(
 				`test/fixtures/${fixture}.tsp`,
 			);
-			assert.match(output, /index-invalid-collection/);
+			assert.match(output, /warning\S* \S*index-invalid-collection/);
 			assert.match(output, /@index "byOwner"/);
+			assert.doesNotMatch(output, /error/);
+			assert.deepEqual(indexesOf(entities, "Thing").byOwner, {
+				pk: { field: "gsi1pk", composite: ["ownerId"] },
+				sk: { field: "gsi1sk", composite: ["thingId"] },
+				index: "gsi1",
+			});
 		});
 	}
+
+	test("an enum member collection emits its value, as 5.2.2 did", async () => {
+		const { output, entities } = await compileFixture(
+			"test/fixtures/collection-enum-member.tsp",
+		);
+		assert.doesNotMatch(output, /index-invalid-collection/);
+		assert.equal(indexesOf(entities, "Thing").byOwner.collection, "holdings");
+	});
 });
 
 suite("Collection partition keys (issue #59)", () => {
@@ -112,31 +138,35 @@ suite("Collection partition keys (issue #59)", () => {
 		assert.deepEqual(names, ["Account", "Contribution"]);
 	});
 
-	for (const { fixture, pattern, entity, line } of [
+	for (const { fixture, pattern, entity, line, members } of [
 		{
 			fixture: "collection-pk-mismatch",
 			pattern: "byAccount",
 			entity: "Position",
 			line: 21,
+			members: { Account: "byOwner", Position: "byAccount" },
 		},
 		{
 			fixture: "collection-pk-label-mismatch",
 			pattern: "byOwner",
 			entity: "Position",
 			line: 21,
+			members: { Account: "byOwner", Position: "byOwner" },
 		},
 		{
 			fixture: "sub-collection-pk-mismatch",
 			pattern: "byAccount",
 			entity: "Contribution",
 			line: 21,
+			members: { Account: "byOwner", Contribution: "byAccount" },
 		},
 	]) {
-		test(`${fixture} fails to compile at the offending @index`, () => {
-			const output = compileFixtureExpectingFailure(
+		test(`${fixture} warns at the offending @index and still emits every member`, async () => {
+			const { output, entities } = await compileFixture(
 				`test/fixtures/${fixture}.tsp`,
 			);
-			assert.match(output, /collection-partition-key-mismatch/);
+			assert.match(output, /warning\S* \S*collection-partition-key-mismatch/);
+			assert.doesNotMatch(output, /error/);
 			assert.match(
 				output,
 				new RegExp(
@@ -144,6 +174,9 @@ suite("Collection partition keys (issue #59)", () => {
 				),
 			);
 			assert.match(output, new RegExp(`${fixture}\\.tsp\\S*:\\S*${line}\\S*:`));
+			for (const [model, index] of Object.entries(members)) {
+				assert.ok(indexesOf(entities, model)[index].collection);
+			}
 		});
 	}
 });

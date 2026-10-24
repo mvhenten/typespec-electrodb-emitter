@@ -147,7 +147,7 @@ export const $lib = createTypeSpecLibrary({
 			},
 		},
 		"index-invalid-collection": {
-			severity: "error",
+			severity: "warning",
 			description:
 				"An @index collection must be a string literal or a non-empty tuple of string literals.",
 			messages: {
@@ -155,7 +155,7 @@ export const $lib = createTypeSpecLibrary({
 			},
 		},
 		"collection-partition-key-mismatch": {
-			severity: "error",
+			severity: "warning",
 			description:
 				"Every member of an ElectroDB collection must compose the same partition key on the same index.",
 			messages: {
