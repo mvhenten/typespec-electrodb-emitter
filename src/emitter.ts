@@ -26,6 +26,7 @@ import {
 import type { Attribute, CustomAttribute, Schema } from "electrodb";
 import * as ts from "typescript";
 
+import { reportCollectionKeyMismatches } from "./collection-keys.js";
 import type { DerivedSource } from "./decorators/$derived.js";
 import { type ModelBaseOptions, reportDiagnostic, StateKeys } from "./lib.js";
 import { RawCode, stringifyObject } from "./stringify.js";
@@ -1146,13 +1147,16 @@ export async function $onEmit(context: EmitContext) {
 	// Validate every entity before emitting any attribute: a conflicting
 	// decorator pair (e.g. @derived with @createdAt on a string) would
 	// otherwise trip an emitAttribute assertion before its diagnostic lands.
+	const validatedModels: Model[] = [];
 	for (const [model] of entityEntries) {
 		isModel(model);
+		validatedModels.push(model);
 
 		const indexes = context.program.stateMap(StateKeys.index).get(model) ?? {};
 		reportPaddedIndexFields(context, model, indexes);
 		reportDerivedConflicts(context, model);
 	}
+	reportCollectionKeyMismatches(context.program, validatedModels);
 
 	if (context.program.hasError()) return;
 
