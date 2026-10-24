@@ -146,6 +146,14 @@ export const $lib = createTypeSpecLibrary({
 				default: paramMessage`@derived on '${"name"}' reads '${"source"}', which is itself derived. ElectroDB cannot watch an attribute that watches another, so derive both from the original source.`,
 			},
 		},
+		"index-invalid-collection": {
+			severity: "error",
+			description:
+				"An @index collection must be a string literal or a non-empty tuple of string literals.",
+			messages: {
+				default: paramMessage`@index "${"name"}" has a collection that is not a string literal or a non-empty list of string literals. Use \`collection: "name"\` for one collection, or \`collection: ["parent", "child"]\` for a sub-collection, parent first.`,
+			},
+		},
 		"model-base-name-collision": {
 			severity: "error",
 			description:

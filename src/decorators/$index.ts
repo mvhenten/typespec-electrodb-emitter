@@ -6,7 +6,7 @@ import type {
 	Tuple,
 } from "@typespec/compiler";
 import { walkPropertiesInherited } from "@typespec/compiler";
-import { StateKeys } from "../lib.js";
+import { reportDiagnostic, StateKeys } from "../lib.js";
 
 interface AccessPattern {
 	index?: string;
@@ -63,6 +63,34 @@ const getStringValue = (source: Model, name: string) => {
 			}
 		}
 	}
+};
+
+type CollectionResult =
+	| { kind: "absent" }
+	| { kind: "valid"; collection: string | string[] }
+	| { kind: "invalid" };
+
+const readCollection = (pattern: Model): CollectionResult => {
+	const collection = getProperty(pattern, "collection");
+	if (collection === undefined) return { kind: "absent" };
+
+	if (collection.kind === "String") {
+		return collection.value
+			? { kind: "valid", collection: collection.value }
+			: { kind: "absent" };
+	}
+
+	if (collection.kind !== "Tuple" || collection.values.length === 0) {
+		return { kind: "invalid" };
+	}
+
+	const names: string[] = [];
+	for (const value of collection.values) {
+		if (value.kind !== "String" || !value.value) return { kind: "invalid" };
+		names.push(value.value);
+	}
+
+	return { kind: "valid", collection: names };
 };
 
 const isLocalSecondaryIndex = (index: string) => /^lsi[1-5]$/.test(index);
@@ -126,7 +154,20 @@ export function $index(
 		sk,
 	};
 
-	for (const key of ["index", "collection", "type", "scope"] as const) {
+	const collection = readCollection(pattern);
+	if (collection.kind === "invalid") {
+		reportDiagnostic(context.program, {
+			code: "index-invalid-collection",
+			target: context.decoratorTarget,
+			format: { name },
+		});
+		return;
+	}
+	if (collection.kind === "valid") {
+		accesPattern.collection = collection.collection;
+	}
+
+	for (const key of ["index", "type", "scope"] as const) {
 		const value = getStringValue(pattern, key);
 
 		if (value) {
