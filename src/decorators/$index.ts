@@ -161,7 +161,6 @@ export function $index(
 			target: context.decoratorTarget,
 			format: { name },
 		});
-		return;
 	}
 	if (collection.kind === "valid") {
 		accesPattern.collection = collection.collection;
