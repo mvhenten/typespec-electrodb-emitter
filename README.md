@@ -68,7 +68,11 @@ Annotate models with `@entity` and `@index`, and properties with the rest.
 `index`, `collection`, `scope`, `type`, `pk`, and `sk`. `type` is
 `IndexType.isolated` (the default) or `IndexType.clustered`, ElectroDB's
 [index types](https://electrodb.dev/en/modeling/indexes/): a clustered
-collection sorts its member entities together by sort key. See
+collection sorts its member entities together by sort key. `collection` is a
+string, or a list for a
+[sub-collection](https://electrodb.dev/en/modeling/collections/#sub-collections)
+ordered parent first (`collection: ["holdings", "deposits"]`); a member of a
+sub-collection also belongs to every collection before it in the list. See
 [`tsp/main.tsp`](./tsp/main.tsp) for the full signatures.
 
 ### `@semanticVersion`
