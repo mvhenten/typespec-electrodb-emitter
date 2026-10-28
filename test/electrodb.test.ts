@@ -4,7 +4,6 @@ import { Entity, Service } from "electrodb";
 import {
 	Deposit,
 	Job,
-	Order,
 	Person,
 	Pet,
 	Task,
@@ -229,47 +228,52 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 		assert.ok(params.Item);
 		assert.deepEqual([...params.Item.tags.values].sort(), ["01", "02"]);
 	});
-});
 
-suite("Order Entity (list of string literals)", () => {
-	test("put keeps the listed literals", () => {
-		const OrderEntity = new Entity(Order, { table });
+	test("put keeps listed literals in sets", () => {
+		const PetEntity = new Entity(Pet, { table });
 
-		const params = OrderEntity.put({
-			orderId: "1234567890123456789012345",
-			labels: ["gift", "fragile"],
-			shipment: { labels: ["fragile"] },
+		const params = PetEntity.put({
+			petId: "1234567890123456789012345",
+			name: "Rex",
+			tags: [],
+			labels: ["indoor", "outdoor"],
+			care: { labels: ["outdoor"], meals: [1, 2] },
 		}).params();
 
-		assert.deepEqual(params.Item.labels, ["gift", "fragile"]);
-		assert.deepEqual(params.Item.shipment.labels, ["fragile"]);
+		assert.deepEqual(params.Item.labels.values, ["indoor", "outdoor"]);
+		assert.deepEqual(params.Item.care.labels.values, ["outdoor"]);
+		assert.deepEqual(params.Item.care.meals.values, [1, 2]);
 	});
 
 	test("put rejects a value outside the literals", () => {
-		const OrderEntity = new Entity(Order, { table });
+		const PetEntity = new Entity(Pet, { table });
 
 		assert.throws(
 			() =>
-				OrderEntity.put({
-					orderId: "1234567890123456789012345",
-					labels: ["perishable"],
-					shipment: { labels: [] },
+				// @ts-expect-error - "feral" is not one of the literals
+				PetEntity.put({
+					petId: "1234567890123456789012345",
+					name: "Rex",
+					tags: [],
+					labels: ["feral"],
 				}).params(),
-			/Invalid value/,
+			/Value not found in set of acceptable values/,
 		);
 	});
 
-	test("put rejects a value outside the literals in a nested map", () => {
-		const OrderEntity = new Entity(Order, { table });
+	test("put rejects a value outside the literals in a map", () => {
+		const PetEntity = new Entity(Pet, { table });
 
 		assert.throws(
 			() =>
-				OrderEntity.put({
-					orderId: "1234567890123456789012345",
-					labels: [],
-					shipment: { labels: ["perishable"] },
+				// @ts-expect-error - 3 is not one of the literals
+				PetEntity.put({
+					petId: "1234567890123456789012345",
+					name: "Rex",
+					tags: [],
+					care: { labels: [], meals: [3] },
 				}).params(),
-			/Invalid value/,
+			/Value not found in set of acceptable values/,
 		);
 	});
 });
