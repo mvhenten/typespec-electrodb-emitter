@@ -308,8 +308,8 @@ model Pet {
     petId: UUID;
     name: string;
     tags: PetTag[];
-    labels?: ("indoor" | "outdoor")[];
-    care?: PetCare;
+    labels: ("indoor" | "outdoor")[];
+    care: PetCare;
 }
 
 model PetCare {

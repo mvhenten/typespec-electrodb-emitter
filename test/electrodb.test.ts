@@ -210,10 +210,15 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 			petId: "1234567890123456789012345",
 			name: "Rex",
 			tags: [],
+			labels: [],
+			care: { labels: [], meals: [] },
 		}).params();
 
 		assert.ok(params.Item);
 		assert.equal("tags" in params.Item, false);
+		assert.equal("labels" in params.Item, false);
+		assert.equal("labels" in params.Item.care, false);
+		assert.equal("meals" in params.Item.care, false);
 	});
 
 	test("put with a non-empty tags array keeps the tags key", () => {
@@ -223,6 +228,8 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 			petId: "1234567890123456789012345",
 			name: "Rex",
 			tags: ["01", "02"],
+			labels: [],
+			care: { labels: [], meals: [] },
 		}).params();
 
 		assert.ok(params.Item);
@@ -256,6 +263,7 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 					name: "Rex",
 					tags: [],
 					labels: ["feral"],
+					care: { labels: [], meals: [] },
 				}).params(),
 			/Value not found in set of acceptable values/,
 		);
@@ -271,6 +279,7 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 					petId: "1234567890123456789012345",
 					name: "Rex",
 					tags: [],
+					labels: [],
 					care: { labels: [], meals: [3] },
 				}).params(),
 			/Value not found in set of acceptable values/,
