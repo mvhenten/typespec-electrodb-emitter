@@ -372,6 +372,28 @@ function emitArrayModel(type: ArrayModelType): Attribute {
 		};
 	}
 
+	// ElectroDB types have no list of enum items: type the items as a custom
+	// attribute and keep the enum check in `validate`.
+	if (
+		elementType.kind === "Union" &&
+		[...elementType.variants.values()].every(
+			(variant) => variant.type.kind === "String",
+		)
+	) {
+		const literals = isLiteralUnion(elementType);
+		return {
+			type: "list",
+			items: {
+				// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
+				type: new RawCode(`CustomAttributeType("any")`),
+				// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
+				validate: new RawCode(
+					`(value) => ${JSON.stringify(literals)}.includes(value)`,
+				),
+			},
+		};
+	}
+
 	return {
 		type: "list",
 		items: emitType(elementType) as CustomAttribute,

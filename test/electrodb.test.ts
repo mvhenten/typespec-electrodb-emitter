@@ -4,6 +4,7 @@ import { Entity, Service } from "electrodb";
 import {
 	Deposit,
 	Job,
+	Order,
 	Person,
 	Pet,
 	Task,
@@ -227,6 +228,32 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 
 		assert.ok(params.Item);
 		assert.deepEqual([...params.Item.tags.values].sort(), ["01", "02"]);
+	});
+});
+
+suite("Order Entity (list of string literals)", () => {
+	test("put keeps the listed literals", () => {
+		const OrderEntity = new Entity(Order, { table });
+
+		const params = OrderEntity.put({
+			orderId: "1234567890123456789012345",
+			labels: ["gift", "fragile"],
+		}).params();
+
+		assert.deepEqual(params.Item.labels, ["gift", "fragile"]);
+	});
+
+	test("put rejects a value outside the literals", () => {
+		const OrderEntity = new Entity(Order, { table });
+
+		assert.throws(
+			() =>
+				OrderEntity.put({
+					orderId: "1234567890123456789012345",
+					labels: ["perishable"],
+				}).params(),
+			/Invalid value/,
+		);
 	});
 });
 

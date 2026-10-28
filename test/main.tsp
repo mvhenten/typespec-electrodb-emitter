@@ -310,6 +310,19 @@ model Pet {
     tags: PetTag[];
 }
 
+// A list of string literals has no ElectroDB enum-list attribute type.
+@entity("order", "shop")
+@index(
+    "orders",
+    {
+        pk: [Order.orderId],
+    }
+)
+model Order {
+    orderId: UUID;
+    labels: ("gift" | "fragile")[];
+}
+
 // @derived: a key facet must be a top-level scalar, so a nested map value
 // keys an index through a hidden copy that every write recomputes.
 model WarehouseLink {
