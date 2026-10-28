@@ -238,9 +238,11 @@ suite("Order Entity (list of string literals)", () => {
 		const params = OrderEntity.put({
 			orderId: "1234567890123456789012345",
 			labels: ["gift", "fragile"],
+			shipment: { labels: ["fragile"] },
 		}).params();
 
 		assert.deepEqual(params.Item.labels, ["gift", "fragile"]);
+		assert.deepEqual(params.Item.shipment.labels, ["fragile"]);
 	});
 
 	test("put rejects a value outside the literals", () => {
@@ -251,6 +253,21 @@ suite("Order Entity (list of string literals)", () => {
 				OrderEntity.put({
 					orderId: "1234567890123456789012345",
 					labels: ["perishable"],
+					shipment: { labels: [] },
+				}).params(),
+			/Invalid value/,
+		);
+	});
+
+	test("put rejects a value outside the literals in a nested map", () => {
+		const OrderEntity = new Entity(Order, { table });
+
+		assert.throws(
+			() =>
+				OrderEntity.put({
+					orderId: "1234567890123456789012345",
+					labels: [],
+					shipment: { labels: ["perishable"] },
 				}).params(),
 			/Invalid value/,
 		);

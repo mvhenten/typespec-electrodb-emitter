@@ -321,6 +321,11 @@ model Pet {
 model Order {
     orderId: UUID;
     labels: ("gift" | "fragile")[];
+    shipment: OrderShipment;
+}
+
+model OrderShipment {
+    labels: ("gift" | "fragile")[];
 }
 
 // @derived: a key facet must be a top-level scalar, so a nested map value
