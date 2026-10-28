@@ -372,9 +372,9 @@ function emitArrayModel(type: ArrayModelType): Attribute {
 			items,
 			// DynamoDB rejects writing an empty Set. Drop the attribute entirely
 			// when the array is empty so the write succeeds instead of throwing.
-			set: (value?: string[] | number[]) =>
+			set: <T>(value?: T[]) =>
 				Array.isArray(value) && value.length === 0 ? undefined : value,
-		} as Attribute;
+		};
 	}
 
 	return {
