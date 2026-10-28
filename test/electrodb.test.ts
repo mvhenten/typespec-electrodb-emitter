@@ -228,6 +228,54 @@ suite("Pet Entity (set-typed attribute, issue #45)", () => {
 		assert.ok(params.Item);
 		assert.deepEqual([...params.Item.tags.values].sort(), ["01", "02"]);
 	});
+
+	test("put keeps listed literals in sets", () => {
+		const PetEntity = new Entity(Pet, { table });
+
+		const params = PetEntity.put({
+			petId: "1234567890123456789012345",
+			name: "Rex",
+			tags: [],
+			labels: ["indoor", "outdoor"],
+			care: { labels: ["outdoor"], meals: [1, 2] },
+		}).params();
+
+		assert.deepEqual(params.Item.labels.values, ["indoor", "outdoor"]);
+		assert.deepEqual(params.Item.care.labels.values, ["outdoor"]);
+		assert.deepEqual(params.Item.care.meals.values, [1, 2]);
+	});
+
+	test("put rejects a value outside the literals", () => {
+		const PetEntity = new Entity(Pet, { table });
+
+		assert.throws(
+			() =>
+				// @ts-expect-error - "feral" is not one of the literals
+				PetEntity.put({
+					petId: "1234567890123456789012345",
+					name: "Rex",
+					tags: [],
+					labels: ["feral"],
+				}).params(),
+			/Value not found in set of acceptable values/,
+		);
+	});
+
+	test("put rejects a value outside the literals in a map", () => {
+		const PetEntity = new Entity(Pet, { table });
+
+		assert.throws(
+			() =>
+				// @ts-expect-error - 3 is not one of the literals
+				PetEntity.put({
+					petId: "1234567890123456789012345",
+					name: "Rex",
+					tags: [],
+					care: { labels: [], meals: [3] },
+				}).params(),
+			/Value not found in set of acceptable values/,
+		);
+	});
 });
 
 suite("Clustered collection (issue #58)", () => {

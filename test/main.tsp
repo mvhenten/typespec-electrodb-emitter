@@ -308,6 +308,13 @@ model Pet {
     petId: UUID;
     name: string;
     tags: PetTag[];
+    labels?: ("indoor" | "outdoor")[];
+    care?: PetCare;
+}
+
+model PetCare {
+    labels: ("indoor" | "outdoor")[];
+    meals: (1 | 2)[];
 }
 
 // @derived: a key facet must be a top-level scalar, so a nested map value

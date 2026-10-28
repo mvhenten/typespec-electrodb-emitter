@@ -357,17 +357,22 @@ function emitScalar(type: Scalar): Attribute {
 function emitArrayModel(type: ArrayModelType): Attribute {
 	const elementType = type.indexer.value;
 
-	// Enum arrays should be emitted as DynamoDB/ElectroDB "set" type
-	if (elementType.kind === "Enum") {
-		const items = Array.from(elementType.members).map(
-			([key, member]) => `${member.value ?? key}`,
-		);
+	// Enum and literal union arrays should be emitted as DynamoDB/ElectroDB "set" type
+	const items =
+		elementType.kind === "Enum"
+			? Array.from(elementType.members).map(
+					([key, member]) => `${member.value ?? key}`,
+				)
+			: elementType.kind === "Union"
+				? isLiteralUnion(elementType)
+				: null;
+	if (items) {
 		return {
 			type: "set",
 			items,
 			// DynamoDB rejects writing an empty Set. Drop the attribute entirely
 			// when the array is empty so the write succeeds instead of throwing.
-			set: (value?: string[]) =>
+			set: <T>(value?: T[]) =>
 				Array.isArray(value) && value.length === 0 ? undefined : value,
 		};
 	}
@@ -517,22 +522,22 @@ function emitTypeToTypeScript(type: Type): string {
 	}
 }
 
-function isLiteralUnion(type: Union): string[] | null {
-	const literals: string[] = [];
+function isLiteralUnion(type: Union): string[] | number[] | null {
+	const literals: (string | number)[] = [];
 
 	for (const variant of type.variants.values()) {
 		// Check if this variant is a string or number literal
-		if (variant.type.kind === "String") {
+		if (variant.type.kind === "String" || variant.type.kind === "Number") {
 			literals.push(variant.type.value);
-		} else if (variant.type.kind === "Number") {
-			literals.push(String(variant.type.value));
 		} else {
 			// Not a literal union, return null
 			return null;
 		}
 	}
 
-	return literals;
+	return literals.every((literal) => typeof literal === "number")
+		? literals
+		: literals.map(String);
 }
 
 function emitUnion(type: Union): Attribute {
@@ -541,7 +546,7 @@ function emitUnion(type: Union): Attribute {
 	if (literals) {
 		// Emit as enum-like array, similar to how named enums are handled
 		return {
-			type: literals,
+			type: literals.map(String),
 		};
 	}
 
@@ -672,7 +677,7 @@ function getValidationConstraints(
 	if (prop.type.kind === "Union") {
 		const literals = isLiteralUnion(prop.type);
 		if (literals) {
-			constraints.enumValues = literals;
+			constraints.enumValues = literals.map(String);
 		}
 	}
 
