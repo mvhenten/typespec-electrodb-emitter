@@ -429,3 +429,42 @@ model Contribution {
     contributionId: string;
     ownerId: string;
 }
+
+model RuleAllOf {
+    test: "allof";
+    tests: RuleTest[];
+}
+
+model RuleNot {
+    test: "not";
+    operand: RuleTest;
+}
+
+model RuleHeader {
+    test: "header";
+    key: string;
+}
+
+union RuleTest {
+    allof: RuleAllOf,
+    not: RuleNot,
+    header: RuleHeader,
+}
+
+model TreeNode {
+    label: string;
+    children: TreeNode[];
+}
+
+@entity("rule", "org")
+@index(
+    "rules",
+    {
+        pk: [Rule.pk],
+    }
+)
+model Rule {
+    pk: UUID;
+    test: RuleTest;
+    tree: TreeNode;
+}
