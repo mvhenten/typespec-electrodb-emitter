@@ -420,6 +420,12 @@ function emitModel(type: Model): Attribute {
 		case "Record":
 			return emitOpenRecordModel(type as RecordModelType);
 	}
+	if (isRecursiveModel(type)) {
+		return {
+			// @ts-expect-error - RawCode is handled by stringifyObject at code generation time
+			type: new RawCode(`CustomAttributeType<${type.name}>("any")`),
+		};
+	}
 	if (isOpenRecordModel(type)) {
 		return emitOpenRecordModel(type as RecordModelType);
 	}
@@ -456,6 +462,67 @@ function emitEnumMember(type: EnumMember): Attribute {
 	};
 }
 
+function referencedTypes(type: Type): Type[] {
+	switch (type.kind) {
+		case "Model":
+			return [
+				...[...walkPropertiesInherited(type)].map((prop) => prop.type),
+				...(type.indexer ? [type.indexer.value] : []),
+			];
+		case "Union":
+			return [...type.variants.values()].map((variant) => variant.type);
+		default:
+			return [];
+	}
+}
+
+const recursiveModels = new WeakMap<Model, boolean>();
+
+/**
+ * Whether a named model reaches itself through its properties. ElectroDB
+ * attributes cannot nest recursively, so such a model is stored as an opaque
+ * custom attribute and typed by a named TypeScript type that refers to itself.
+ */
+function isRecursiveModel(model: Model): boolean {
+	if (!model.name || model.name === "Array" || model.name === "Record") {
+		return false;
+	}
+
+	const known = recursiveModels.get(model);
+	if (known !== undefined) {
+		return known;
+	}
+
+	const visited = new Set<Type>();
+	const pending = referencedTypes(model);
+	let recursive = false;
+	for (let next = pending.pop(); next; next = pending.pop()) {
+		if (next === model) {
+			recursive = true;
+			break;
+		}
+		if (visited.has(next)) {
+			continue;
+		}
+		visited.add(next);
+		pending.push(...referencedTypes(next));
+	}
+
+	recursiveModels.set(model, recursive);
+	return recursive;
+}
+
+function emitModelBodyToTypeScript(type: Model): string {
+	const properties: string[] = [];
+	for (const prop of walkPropertiesInherited(type as RecordModelType)) {
+		const optional = prop.optional ? "?" : "";
+		properties.push(
+			`${prop.name}${optional}: ${emitTypeToTypeScript(prop.type)}`,
+		);
+	}
+	return `{ ${properties.join("; ")} }`;
+}
+
 function emitTypeToTypeScript(type: Type): string {
 	switch (type.kind) {
 		case "Scalar": {
@@ -490,16 +557,13 @@ function emitTypeToTypeScript(type: Type): string {
 		case "Model": {
 			if (type.name === "Array") {
 				const arrayType = type as ArrayModelType;
-				return `${emitTypeToTypeScript(arrayType.indexer.value)}[]`;
+				const element = emitTypeToTypeScript(arrayType.indexer.value);
+				return element.includes(" | ") ? `(${element})[]` : `${element}[]`;
 			}
-			const properties: string[] = [];
-			for (const prop of walkPropertiesInherited(type as RecordModelType)) {
-				const optional = prop.optional ? "?" : "";
-				properties.push(
-					`${prop.name}${optional}: ${emitTypeToTypeScript(prop.type)}`,
-				);
+			if (isRecursiveModel(type)) {
+				return type.name;
 			}
-			return `{ ${properties.join("; ")} }`;
+			return emitModelBodyToTypeScript(type);
 		}
 		case "Enum": {
 			const values = Array.from(type.members)
@@ -509,6 +573,11 @@ function emitTypeToTypeScript(type: Type): string {
 		}
 		case "EnumMember":
 			return `"${type.value ?? type.name}"`;
+		case "String":
+			return JSON.stringify(type.value);
+		case "Number":
+		case "Boolean":
+			return String(type.value);
 		case "Union": {
 			const variants = Array.from(type.variants.values())
 				.map((variant) => emitTypeToTypeScript(variant.type))
@@ -520,6 +589,36 @@ function emitTypeToTypeScript(type: Type): string {
 		default:
 			return "any";
 	}
+}
+
+/**
+ * Declares, once each, the named TypeScript types of every recursive model
+ * reachable from an entity attribute.
+ */
+function emitRecursiveTypeDeclarations(models: Model[]): string {
+	const visited = new Set<Type>();
+	const declared = new Map<string, Model>();
+	const pending: Type[] = models.flatMap((model) =>
+		[...model.properties.values()].map((prop) => prop.type),
+	);
+
+	for (let next = pending.pop(); next; next = pending.pop()) {
+		if (visited.has(next)) {
+			continue;
+		}
+		visited.add(next);
+		if (next.kind === "Model" && isRecursiveModel(next)) {
+			declared.set(next.name, next);
+		}
+		pending.push(...referencedTypes(next));
+	}
+
+	return [...declared.values()]
+		.map(
+			(model) =>
+				`export type ${model.name} = ${emitModelBodyToTypeScript(model)};\n`,
+		)
+		.join("");
 }
 
 function isLiteralUnion(type: Union): string[] | number[] | null {
@@ -1206,7 +1305,8 @@ export async function $onEmit(context: EmitContext) {
 			? `import { ${electrodbImports.join(", ")} } from "electrodb";\n\n`
 			: "";
 
-	const typescriptSource = imports + entityDefinitions;
+	const typeDeclarations = emitRecursiveTypeDeclarations(entityModels);
+	const typescriptSource = imports + typeDeclarations + entityDefinitions;
 
 	const declarations = await ts.transpileDeclaration(typescriptSource, {});
 	const esm = ts.transpileModule(typescriptSource, {
